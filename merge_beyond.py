@@ -347,8 +347,8 @@ def _merge_big_with_small(big_insects, small_insects):
     return big_insects + small_insects_result
 
 def predict(image, merage=False):
-    device = _get_device()
-    daofeishi_predict = predict_daofeishi(image, device)
-    second = prdict_second(image, device, merage)
+    # device = _get_device()
+    daofeishi_predict = predict_daofeishi(image)
+    second = prdict_second(image, merage=merage)
     merge_big_with_small = _merge_big_with_small(second, daofeishi_predict)
     return merge_big_with_small

@@ -1,0 +1,212 @@
+{
+  "xiaolvyechan": {
+    "width_px": {
+      "min": 59,
+      "max": 200
+    },
+    "height_px": {
+      "min": 67,
+      "max": 175
+    }
+  },
+  "heiweiyechan": {
+    "width_px": {
+      "min": 72,
+      "max": 228
+    },
+    "height_px": {
+      "min": 72,
+      "max": 284
+    }
+  },
+  "hefeishi": {
+    "width_px": {
+      "min": 98,
+      "max": 193
+    },
+    "height_px": {
+      "min": 67,
+      "max": 168
+    }
+  },
+  "daqingyechan": {
+    "width_px": {
+      "min": 184,
+      "max": 520
+    },
+    "height_px": {
+      "min": 124,
+      "max": 380
+    }
+  },
+  "baibeifeishi": {
+    "width_px": {
+      "min": 49,
+      "max": 226
+    },
+    "height_px": {
+      "min": 46,
+      "max": 205
+    }
+  },
+  "dianguangyechan": {
+    "width_px": {
+      "min": 77,
+      "max": 193
+    },
+    "height_px": {
+      "min": 67,
+      "max": 160
+    }
+  },
+  "huifeishi": {
+    "width_px": {
+      "min": 82,
+      "max": 168
+    },
+    "height_px": {
+      "min": 68,
+      "max": 158
+    }
+  },
+  "daofeishi": {
+    "width_px": {
+      "min": 46,
+      "max": 284
+    },
+    "height_px": {
+      "min": 46,
+      "max": 284
+    }
+  },
+  "yumiming": {
+    "width_px": {
+      "min": 243,
+      "max": 684
+    },
+    "height_px": {
+      "min": 210,
+      "max": 843
+    }
+  },
+  "caoditanyee": {
+    "width_px": {
+      "min": 350,
+      "max": 800
+    },
+    "height_px": {
+      "min": 400,
+      "max": 800
+    }
+  },
+    "fayee": {
+    "width_px": {
+      "min": 482,
+      "max": 718
+    },
+    "height_px": {
+      "min": 505,
+      "max": 699
+    }
+  },
+  "erdianweiyee": {
+    "width_px": {
+      "min": 306,
+      "max": 478
+    },
+    "height_px": {
+      "min": 269,
+      "max": 572
+    }
+  },
+  "erhuaming": {
+    "width_px": {
+      "min": 236,
+      "max": 498
+    },
+    "height_px": {
+      "min": 218,
+      "max": 477
+    }
+  },
+  "daming": {
+    "width_px": {
+      "min": 412,
+      "max": 575
+    },
+    "height_px": {
+      "min": 367,
+      "max": 576
+    }
+  },
+  "mianlingchong": {
+    "width_px": {
+      "min": 380,
+      "max": 696
+    },
+    "height_px": {
+      "min": 581,
+      "max": 774
+    }
+  },
+  "kuanjingyee": {
+    "width_px": {
+      "min": 557,
+      "max": 732
+    },
+    "height_px": {
+      "min": 598,
+      "max": 755
+    }
+  },
+  "xiewenyee": {
+    "width_px": {
+      "min": 608,
+      "max": 820
+    },
+    "height_px": {
+      "min": 409,
+      "max": 760
+    }
+  },
+  "xiumuyee": {
+    "width_px": {
+      "min": 429,
+      "max": 687
+    },
+    "height_px": {
+      "min": 437,
+      "max": 640
+    }
+  },
+  "guajuanyeming": {
+    "width_px": {
+      "min": 280,
+      "max": 561
+    },
+    "height_px": {
+      "min": 277,
+      "max": 639
+    }
+  },
+  "pingshaoyingyee": {
+    "width_px": {
+      "min": 436,
+      "max": 710
+    },
+    "height_px": {
+      "min": 745,
+      "max": 855
+    }
+  },
+  "huangchizhuiye": {
+    "width_px": {
+      "min": 394,
+      "max": 694
+    },
+    "height_px": {
+      "min": 342,
+      "max": 663
+    }
+  }
+}

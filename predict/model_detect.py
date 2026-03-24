@@ -6,19 +6,23 @@
 # @Detail  : 
 # @Software: PyCharm
 import logging
-import numpy as np
+import os
+
+import cv2
 import torchvision
 import torch
 from ultralytics import YOLO
-
 
 def get_clip(w, h, clip_size, overlap_size):
     # clip_size = 10, overlap_size = 2为例
     # 0, 10; 8, 18; 16, 26
     step = clip_size - overlap_size
+    if step <= 0:
+        step = 1  # 避免无限循环
     for i in range(0, w, step):
         for j in range(0, h, step):
             yield i, j, min(w, i + clip_size), min(h, j + clip_size)
+
 
 def ior(box1, box2):
     x1, y1, x2, y2 = box1[:4]
@@ -26,8 +30,8 @@ def ior(box1, box2):
     x_overlap = max(0, min(x2, x4) - max(x1, x3))
     y_overlap = max(0, min(y2, y4) - max(y1, y3))
     overlap_area = x_overlap * y_overlap
-    box1_s = ( x2-x1 ) * (y2-y1)
-    box2_s = ( x4-x3 ) * (y4-y3)
+    box1_s = (x2-x1) * (y2-y1)
+    box2_s = (x4-x3) * (y4-y3)
     if box1_s == 0 or box2_s == 0:
         return 0
     return overlap_area / min(box1_s, box2_s)
@@ -49,24 +53,24 @@ class ModelDetector:
             self.device = self._auto_detect_device()
         else:
             self.device = device
-        
+
         logging.info(f"使用设备: {self.device}")
-        
+
         # 加载模型（设备在predict时自动处理）
         self.model = YOLO(model_path)
-        
+
         # 整体输出置信度
         self.conf_thresh = conf_thresh
         # merge之前置信度
         self.conf_merge = conf_merge
         self.iou_threshold = iou_threshold
         self.ior_threshold = ior_threshold
-    
+
     def _auto_detect_device(self):
         """
         自动检测可用的设备
         优先级: CUDA > MPS > CPU
-        
+
         :return: 设备名称 ('cuda', 'mps', 'cpu')
         """
         if torch.cuda.is_available():
@@ -76,8 +80,8 @@ class ModelDetector:
         else:
             return 'cpu'
 
-    def _predict(self, image, conf=0.1, detect_id: str='0-0'):
-        pred = self.model.predict(image, device=self.device)
+    def _predict(self, image, conf=0.01, detect_id: str='0-0', device=None):
+        pred = self.model.predict(image, verbose=True, device=device or self.device)
         results = []
         for detection in pred[0].boxes:
             try:
@@ -86,7 +90,6 @@ class ModelDetector:
                     continue
 
                 x1, y1, x2, y2 = detection.xyxy.tolist()[0]
-                # cls = detection.cls.item()
                 x1 = int(x1)
                 y1 = int(y1)
                 x2 = int(x2)
@@ -129,18 +132,18 @@ class ModelDetector:
         boxes = sorted(boxes, key=lambda x: x[4], reverse=True)
         filtered_boxes = []
         merged_indices = set()  # 记录已被合并的框的索引
-        
+
         for i in range(len(boxes)):
             if i in merged_indices:
                 continue
-                
+
             box = boxes[i]
             merged = False
-            
+
             for j in range(i + 1, len(boxes)):
                 if j in merged_indices:
                     continue
-                    
+
                 # 如果 detect_id相同，不合并
                 if boxes[i][6] == boxes[j][6]:
                     continue
@@ -154,7 +157,7 @@ class ModelDetector:
                     # 根据框的大小来保留大框
                     s_i = (box[2] - box[0]) * (box[3] - box[1])
                     s_j = (boxes[j][2] - boxes[j][0]) * (boxes[j][3] - boxes[j][1])
-                    
+
                     if s_i > s_j:
                         # 当前框更大，保留当前框，标记j为已合并
                         merged_indices.add(j)
@@ -164,7 +167,7 @@ class ModelDetector:
                         merged_indices.add(i)
                         merged = True
                         break
-            
+
             if not merged:
                 filtered_boxes.append(box)
 
@@ -231,10 +234,12 @@ class ModelDetector:
 
     def predict(self, image, clip_size=2500, overlap_size=800,
                 padding=False, debug=False, debug_clip=False,
-                min_size=5, max_size=None, edge_reject_distance=0
+                min_size=5, max_size=None, edge_reject_distance=0,
+                device=None,
                 ):
         """
         推理
+        :param device:
         :param image:
         :param clip_size: 按照正方形切片，如果大于或者等于全图，不切
         :param overlap_size: 多个切片重叠区域像素大小
@@ -247,7 +252,7 @@ class ModelDetector:
         h = image.shape[0]
         all_box = []
         if not clip_size or not overlap_size and (clip_size >= w and clip_size >= h or clip_size <= overlap_size <= 1):
-            results = self._predict(image, self.conf_thresh)
+            results = self._predict(image, self.conf_thresh, device=device)
             results = self._convert_result(results)
             if debug:
                 self.draw(image, results)
@@ -271,7 +276,8 @@ class ModelDetector:
                 padded[:actual_clip_h, :actual_clip_w] = clip
                 clip = padded
 
-            results = self._predict(clip, conf=self.conf_merge, detect_id=f"{clip_x1}-{clip_y1}")
+            results = self._predict(clip, conf=self.conf_merge, detect_id=f"{clip_x1}-{clip_y1}", device=device)
+            results = self._predict(clip, conf=self.conf_merge, detect_id=f"{clip_x1}-{clip_y1}", device=device)
             filtered_clip_results = []
 
             # 校准坐标

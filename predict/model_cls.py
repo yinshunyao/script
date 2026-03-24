@@ -6,19 +6,40 @@
 # @Detail  : 
 # @Software: PyCharm
 import logging
+import torchvision
+import torch
 from ultralytics import YOLO
 
 class ModelCls:
 
-    def __init__(self, model_path):
+    def __init__(self, model_path, device=None):
         self.model_path = model_path
+        # 自动检测设备
+        if device is None:
+            self.device = self._auto_detect_device()
+        else:
+            self.device = device
         self.model = YOLO(self.model_path, task="classification")
         # 切换到推理模式
         self.names = self.model.names
 
+    def _auto_detect_device(self):
+        """
+        自动检测可用的设备
+        优先级: CUDA > MPS > CPU
+
+        :return: 设备名称 ('cuda', 'mps', 'cpu')
+        """
+        if torch.cuda.is_available():
+            return 'cuda'
+        elif torch.backends.mps.is_available():
+            return 'mps'
+        else:
+            return 'cpu'
+
     def predict(self, image, device=None):
         try:
-            results = self.model.predict(image, device=device)
+            results = self.model.predict(image, device=device or self.device)
             if not results:
                 logging.error(f"模型{self.model_path}推理结果为空")
                 return None
@@ -30,6 +51,25 @@ class ModelCls:
                 "class_name": self.names[class_id],
                 "conf": float(probe.top1conf.item()),
             }
+        except Exception as e:
+            logging.error(f"模型{self.model_path}推理异常:{e}", exc_info=True)
+            return None
+
+    def predictTop2(self, image, device=None):
+        try:
+            results = self.model.predict(image, device=device or self.device)
+            if not results:
+                logging.error(f"模型{self.model_path}推理结果为空")
+                return None
+
+            probe = results[0].probs
+            class_id = probe.top5
+            top_conf = probe.top5conf
+            result = {
+                "1": {"class_id": class_id[0], "class_name": self.names[class_id[0]], "conf": float(top_conf[0].item()), },
+                "2": {"class_id": class_id[1], "class_name": self.names[class_id[1]], "conf": float(top_conf[1].item()), }
+            }
+            return result
         except Exception as e:
             logging.error(f"模型{self.model_path}推理异常:{e}", exc_info=True)
             return None

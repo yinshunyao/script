@@ -6,12 +6,10 @@
 # @Detail  : 
 # @Software: PyCharm
 import logging
-import os
-
-import cv2
 import torchvision
 import torch
 from ultralytics import YOLO
+import numpy as np
 
 def get_clip(w, h, clip_size, overlap_size):
     # clip_size = 10, overlap_size = 2为例
@@ -276,7 +274,7 @@ class ModelDetector:
                 padded[:actual_clip_h, :actual_clip_w] = clip
                 clip = padded
 
-            results = self._predict(clip, conf=self.conf_merge, detect_id=f"{clip_x1}-{clip_y1}", device=device)
+            # results = self._predict(clip, conf=self.conf_merge, detect_id=f"{clip_x1}-{clip_y1}", device=device)
             results = self._predict(clip, conf=self.conf_merge, detect_id=f"{clip_x1}-{clip_y1}", device=device)
             filtered_clip_results = []
 

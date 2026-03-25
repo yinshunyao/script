@@ -84,7 +84,7 @@ if __name__ == "__main__":
     PIC_EXT = {".jpg", ".jpeg", ".png"}
 
     # 输入: 可填单张图片或目录（目录将递归遍历）
-    input_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/虫情4模型测试数据2/地老虎（尹）"
+    input_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/虫情4模型测试数据"
     # input_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/稻飞虱 0209-测试"
 
     # 输出目录: 保存绘制结果；目录输入时保持子目录结构

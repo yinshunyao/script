@@ -307,19 +307,20 @@ if __name__ == "__main__":
     cls_list = ['daofeishi']
 
     model_path = current_dir.parent / "models" / "20260123"
-    detect_model_path = model_path / "daofeishi-detect.pt"
+    # detect_model_path = model_path / "daofeishi-detect.pt"
+    detect_model_path = model_path / "daofeishi-detect-0320.pt"
     # detect_model_path = model_path / "kuangxuan_0209.pt"
     # detect_model_path = model_path / "daofeishi-detect-0320.pt"
     cls_model_path = model_path / "daofeishi-cls.pt"
     # 输入：可以是单张图片路径，也可以是文件夹路径（递归遍历子目录）
-    # input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/虫情4模型测试数据'
-    input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/稻飞虱 0209-测试'
+    input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/虫情4模型测试数据'
+    # input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/稻飞虱 0209-测试'
     # input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/虫情4模型测试数据/混合'
     # 输出目录：保存绘制结果（保持与输入相同的子目录结构和文件名）
     output_dir = input_path + "_big"
     clip_size = 640
     overlap_size = 120
-    edge_reject_distance = 5
+    edge_reject_distance = 0
     predict_debug = False
     debug_clip = False
     conf_thresh = 0.65

@@ -8,7 +8,7 @@
 import logging
 import os
 import cv2
-from predict_size_daofeishi import PredictSize, size_config_path, current_dir, Path
+from predict_size_daofeishi import PredictSize, current_dir, Path
 
 # ====================================================================== #
 #  使用示例 — 支持给定文件夹，遍历目录及子目录下的图片
@@ -21,15 +21,16 @@ if __name__ == "__main__":
     PIC_EXT = {".jpg", ".jpeg", ".png"}
 
     # yumiming
-    cls_list = ['yumiming']
+    cls_list = ['daozongjuanyeming','dongfangnianchong', 'erhuaming',
+'huangchizhuiyeyeming', 'laoshinianchong', 'yumiming']
     # detect_model_path =  current_dir / "yumiming-detect.pt"
-    detect_model_path = "/Users/shunyaoyin/Downloads/train7/epoch152.pt"
+    detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/model/big6.pt"
     cls_model_path = None
     # 输入：可以是单张图片路径，也可以是文件夹路径（递归遍历子目录）
-    input_path = "/Users/shunyaoyin/Documents/code/other/insect/data/稻飞虱和玉米螟/玉米螟02"
+    input_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/虫情4模型测试数据"
     # input_path = "/Users/shunyaoyin/Documents/code/other/insect/data/稻飞虱和玉米螟/拍摄"
     # 输出目录：保存绘制结果（保持与输入相同的子目录结构和文件名）
-    output_dir = input_path + "_result0215_best"
+    output_dir = input_path + "_big6"
     clip_size = None
     overlap_size = 200
 
@@ -40,11 +41,11 @@ if __name__ == "__main__":
     #   - 不传 / None: 仅检测 + 尺寸过滤，直接使用检测模型输出的类别
     predictor = PredictSize(
         detect_model_path=detect_model_path,
-        size_config_path=size_config_path,
+        size_config_path=None,
         cls_list=cls_list,
         cls_model_path=cls_model_path,   # 可选，设为 None 则跳过分类
         offset_rate=1.2,
-        conf_thresh=0.3,
+        conf_thresh=0.65,
         ior_threshold=0.7,
         device=None,  # 自动检测
     )

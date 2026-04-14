@@ -55,13 +55,18 @@ class PredictSize:
         self.offset_rate = offset_rate
 
         # ---------- 计算尺寸过滤参数（只在 __init__ 中算一次） ----------
-        self.size_min, self.size_max = self._compute_size_filter(
-            size_config_path, cls_list, offset_rate
-        )
-        logging.info(
-            f"尺寸过滤参数: size_min={self.size_min:.1f}, size_max={self.size_max:.1f}, "
-            f"cls_list={cls_list}, offset_rate={offset_rate}"
-        )
+        if size_config_path is None:
+            self.size_max = None
+            self.size_min = None
+            logging.info(f"无尺寸过滤参数")
+        else:
+            self.size_min, self.size_max = self._compute_size_filter(
+                size_config_path, cls_list, offset_rate
+            )
+            logging.info(
+                f"尺寸过滤参数: size_min={self.size_min:.1f}, size_max={self.size_max:.1f}, "
+                f"cls_list={cls_list}, offset_rate={offset_rate}"
+            )
 
         # ---------- 加载检测模型 ----------
         self.detector = ModelDetector(
@@ -136,6 +141,10 @@ class PredictSize:
         w = box["x2"] - box["x1"]
         h = box["y2"] - box["y1"]
 
+        # size_config_path 为 None 时不做尺寸过滤，全部视为疑似目标
+        if self.size_min is None or self.size_max is None:
+            return True
+
         if w < self.size_min or h < self.size_min:
             return False
         if w > self.size_max or h > self.size_max:
@@ -144,18 +153,66 @@ class PredictSize:
         return True
 
     # ------------------------------------------------------------------ #
+    #  分片检测判定（与 model_detect.ModelDetector.predict 入口一致）
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _uses_clip_predict_path(w, h, clip_size, overlap_size):
+        """
+        True 表示走切片循环（含单张大图仅一块切片的情况），作图时可标「框到整图边缘」像素。
+        与 script/predict/model_detect.py 中 predict 的分支条件保持一致。
+        """
+        if not clip_size or not overlap_size and (
+            clip_size >= w and clip_size >= h or clip_size <= overlap_size <= 1
+        ):
+            return False
+        return True
+
+    @staticmethod
+    def _parse_detect_clip_origin(detect_id):
+        """
+        解析 model_detect 切片推理写入的 detect_id，格式为 "{clip_x1}-{clip_y1}"。
+        :return: (clip_x1, clip_y1) 或解析失败为 None
+        """
+        if not detect_id or not isinstance(detect_id, str):
+            return None
+        parts = detect_id.split("-", 1)
+        if len(parts) != 2:
+            return None
+        try:
+            return int(parts[0]), int(parts[1])
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _min_dist_to_clip_edge(x1, y1, x2, y2, clip_x1, clip_y1, clip_size, w_img, h_img):
+        """
+        检测框（全图坐标）到当前切片矩形四边的距离最小值，与 model_detect._is_near_clip_edge 语义一致（全图坐标版）。
+        切片右下与 get_clip 一致：clip_x2 = min(w, clip_x1+clip_size)，clip_y2 同理。
+        """
+        clip_x2 = min(w_img, clip_x1 + clip_size)
+        clip_y2 = min(h_img, clip_y1 + clip_size)
+        d_left = x1 - clip_x1
+        d_right = clip_x2 - x2
+        d_top = y1 - clip_y1
+        d_bottom = clip_y2 - y2
+        return min(d_left, d_right, d_top, d_bottom)
+
+    # ------------------------------------------------------------------ #
     #  绘制结果
     # ------------------------------------------------------------------ #
     @staticmethod
-    def _draw_results(image, results):
+    def _draw_results(image, results, draw_edge_px=False, clip_size=None):
         """
         将检测和分类结果绘制到图片上
 
-        :param image:   原始图像 (numpy array, BGR)
-        :param results: predict 返回的结果列表
+        :param image:         原始图像 (numpy array, BGR)
+        :param results:       predict 返回的结果列表
+        :param draw_edge_px:  True 时在标签区增加一行「edge-N」：框到所属切片边缘的像素距离最小值 N
+        :param clip_size:     与推理时切片边长一致，用于由 detect_id 还原切片右下边界
         :return: 绘制后的图像副本
         """
         img_draw = image.copy()
+        h_img, w_img = image.shape[:2]
 
         # 颜色方案: 分类/检测目标用绿色，other 用灰色
         color_cls = (0, 255, 0)
@@ -175,18 +232,57 @@ class PredictSize:
 
             # 标签文字：先检出置信度，再分类置信度
             label = f"{cls_name} det:{det_conf:.2f} cls:{cls_conf:.2f}"
+            edge_label = None
+            if draw_edge_px and clip_size:
+                origin = PredictSize._parse_detect_clip_origin(r.get("detect_id", ""))
+                if origin is not None:
+                    cx1, cy1 = origin
+                    m = PredictSize._min_dist_to_clip_edge(
+                        x1, y1, x2, y2, cx1, cy1, clip_size, w_img, h_img
+                    )
+                    edge_label = f"edge-{int(round(m))}"
 
             # 文字背景
             font = cv2.FONT_HERSHEY_SIMPLEX
             font_scale = 0.6
             thickness = 2
-            (tw, th), baseline = cv2.getTextSize(label, font, font_scale, thickness)
-            cv2.rectangle(img_draw,
-                          (x1, y1 - th - baseline - 4),
-                          (x1 + tw, y1),
-                          color, -1)
-            cv2.putText(img_draw, label, (x1, y1 - 4),
-                        font, font_scale, (255, 255, 255), thickness)
+            # 第一行类别/置信度，第二行（可选）edge-到切片边缘最小像素距离
+            line_specs = [(label, font_scale, thickness)]
+            if edge_label:
+                line_specs.append((edge_label, 0.5, 1))
+
+            # 自下而上叠行：最底行 baseline 贴近 y1（与原单行逻辑一致）
+            gap = 2
+            rows = []
+            baseline_y = y1 - 4
+            for line, fs, thk in reversed(line_specs):
+                (tw, th), bl = cv2.getTextSize(line, font, fs, thk)
+                rows.append((line, fs, thk, tw, th, bl, baseline_y))
+                baseline_y -= th + bl + gap
+
+            max_tw = max(r[3] for r in rows)
+            pad_x = 4
+            bg_bottom = y1
+            bg_top = baseline_y + gap
+            bg_left = x1
+            bg_right = x1 + max_tw + pad_x
+            if bg_top < 0:
+                dy = -bg_top
+                bg_top += dy
+                bg_bottom += dy
+                rows = [
+                    (ln, fs, thk, tw, th, bl, by + dy)
+                    for (ln, fs, thk, tw, th, bl, by) in rows
+                ]
+
+            cv2.rectangle(
+                img_draw, (bg_left, bg_top), (bg_right, bg_bottom), color, -1
+            )
+            for line, fs, thk, _tw, _th, _bl, by in rows:
+                cv2.putText(
+                    img_draw, line, (x1 + 2, by),
+                    font, fs, (255, 255, 255), thk,
+                )
 
         return img_draw
 
@@ -266,12 +362,23 @@ class PredictSize:
 
             results.append(det)
 
+        # todo 红河临时方案，灰飞虱转成白背飞虱
+        for det in results:
+            cls_name = det["cls_name"]
+            if cls_name == "huifeishi":
+                det["cls_name"] = "baifeifeishi"
+
         # ---- 第 4 步: 保存绘制结果 ----
         if output is not None:
             os.makedirs(output, exist_ok=True)
             save_name = image_name if image_name else "result.jpg"
             save_path = os.path.join(output, save_name)
-            img_draw = self._draw_results(image, results)
+            draw_edge = self._uses_clip_predict_path(
+                w_img, h_img, clip_size, overlap_size
+            )
+            img_draw = self._draw_results(
+                image, results, draw_edge_px=draw_edge, clip_size=clip_size
+            )
             cv2.imwrite(save_path, img_draw)
             logging.info(f"结果图片已保存: {save_path}")
 
@@ -293,7 +400,6 @@ class PredictSize:
         logging.info("模型资源已释放")
 
 current_dir = Path(__file__).parent
-size_config_path = current_dir / "size.json"
 # ====================================================================== #
 #  使用示例 — 支持给定文件夹，遍历目录及子目录下的图片
 # ====================================================================== #
@@ -308,22 +414,30 @@ if __name__ == "__main__":
 
     model_path = current_dir.parent / "models" / "20260123"
     # detect_model_path = model_path / "daofeishi-detect.pt"
-    detect_model_path = model_path / "daofeishi-detect-0320.pt"
-    # detect_model_path = model_path / "kuangxuan_0209.pt"
+    # detect_model_path = model_path / "daofeishi-detect-0211.pt"
     # detect_model_path = model_path / "daofeishi-detect-0320.pt"
+    # detect_model_path = model_path / "kuangxuan_0209.pt"
+    detect_model_path = model_path / "daofeishi-detect-0405.pt"
+    # detect_model_path = model_path / "daofeishi-detect-040502.pt"
     cls_model_path = model_path / "daofeishi-cls.pt"
     # 输入：可以是单张图片路径，也可以是文件夹路径（递归遍历子目录）
-    input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/虫情4模型测试数据'
+    # input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/daofeishi-0410-红河'
+    # input_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/daofeishi-0401-红河测试"
     # input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/稻飞虱 0209-测试'
-    # input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/虫情4模型测试数据/混合'
+    input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/红河问题/0413反馈问题/2043678055433539584-2026-04-13 21：09：15.jpg'
     # 输出目录：保存绘制结果（保持与输入相同的子目录结构和文件名）
-    output_dir = input_path + "_big"
+    output_dir = input_path + "_0405"
     clip_size = 640
     overlap_size = 120
-    edge_reject_distance = 0
     predict_debug = False
     debug_clip = False
+    edge_reject_distance = 5
     conf_thresh = 0.65
+    # 漏检排查
+    # edge_reject_distance = 5
+    # conf_thresh = 0.3
+    # size_config_path = current_dir / "size.json"
+    size_config_path = None
     # clip_size = 1280
     # overlap_size = 100
 

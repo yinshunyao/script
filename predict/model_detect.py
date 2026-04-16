@@ -10,6 +10,7 @@ import torchvision
 import torch
 from ultralytics import YOLO
 import numpy as np
+import cv2
 
 def get_clip(w, h, clip_size, overlap_size):
     # clip_size = 10, overlap_size = 2为例
@@ -34,9 +35,17 @@ def ior(box1, box2):
         return 0
     return overlap_area / min(box1_s, box2_s)
 
+def enhance_contrast(img):
+    # 方法1: CLAHE（自适应直方图均衡，对局部纹理友好）
+    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    l, a, b = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    l_enhanced = clahe.apply(l)
+    lab_enhanced = cv2.merge([l_enhanced, a, b])
+    return cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2BGR)
 
 class ModelDetector:
-    def __init__(self, model_path, conf_thresh=0.5, conf_merge=0.3, iou_threshold=0.3, ior_threshold=0.5, device=None):
+    def __init__(self, model_path, conf_thresh=0.5, conf_merge=0.3, iou_threshold=0.3, ior_threshold=0.5, device=None, augment=False):
         """
 
         :param model_path:
@@ -51,6 +60,8 @@ class ModelDetector:
             self.device = self._auto_detect_device()
         else:
             self.device = device
+
+        self.augment = augment
 
         logging.info(f"使用设备: {self.device}")
 
@@ -78,8 +89,13 @@ class ModelDetector:
         else:
             return 'cpu'
 
-    def _predict(self, image, conf=0.01, detect_id: str='0-0', device=None):
-        pred = self.model.predict(image, verbose=True, device=device or self.device)
+    def _predict(self, image, conf=0.01, detect_id: str='0-0', device=None, imgsz=0, overlap=0):
+        kwargs = {}
+        if imgsz:
+            kwargs['imgsz'] = imgsz
+        if overlap:
+            kwargs['overlap'] = overlap
+        pred = self.model.predict(image, verbose=False, device=device or self.device, augment=self.augment, **kwargs)
         results = []
         for detection in pred[0].boxes:
             try:
@@ -126,48 +142,60 @@ class ModelDetector:
         ]
 
     def merge_ior(self, boxes):
-        # 按置信度降序排序，优先保留高置信度的框
-        boxes = sorted(boxes, key=lambda x: x[4], reverse=True)
-        filtered_boxes = []
-        merged_indices = set()  # 记录已被合并的框的索引
+        """
+        同类、不同切片 detect_id、IoR 超过阈值时合并为一条：
+        外接框取组内坐标并集（x1/y1 最小，x2/y2 最大），置信度取组内最高；
+        detect_id 随组内置信度最高框保留。
+        """
+        n = len(boxes)
+        if n == 0:
+            return []
 
-        for i in range(len(boxes)):
-            if i in merged_indices:
-                continue
+        parent = list(range(n))
 
-            box = boxes[i]
-            merged = False
+        def find(a):
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]
+                a = parent[a]
+            return a
 
-            for j in range(i + 1, len(boxes)):
-                if j in merged_indices:
+        def union(a, b):
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[rb] = ra
+
+        for i in range(n):
+            for j in range(i + 1, n):
+                if self._box_row_filtered(boxes[i]) or self._box_row_filtered(boxes[j]):
                     continue
-
-                # 如果 detect_id相同，不合并
                 if boxes[i][6] == boxes[j][6]:
                     continue
-
-                # cls不同，不合并
                 if boxes[i][5] != boxes[j][5]:
                     continue
+                if ior(boxes[i], boxes[j]) > self.ior_threshold:
+                    union(i, j)
 
-                # 计算IoR
-                if ior(box, boxes[j]) > self.ior_threshold:
-                    # 根据框的大小来保留大框
-                    s_i = (box[2] - box[0]) * (box[3] - box[1])
-                    s_j = (boxes[j][2] - boxes[j][0]) * (boxes[j][3] - boxes[j][1])
+        clusters = {}
+        for i in range(n):
+            r = find(i)
+            clusters.setdefault(r, []).append(i)
 
-                    if s_i > s_j:
-                        # 当前框更大，保留当前框，标记j为已合并
-                        merged_indices.add(j)
-                    else:
-                        # j框更大，用j框替换当前框，标记i为已合并
-                        box = boxes[j]
-                        merged_indices.add(i)
-                        merged = True
-                        break
-
-            if not merged:
-                filtered_boxes.append(box)
+        filtered_boxes = []
+        for _root, idxs in clusters.items():
+            group = [boxes[i] for i in idxs]
+            max_conf = max(b[4] for b in group)
+            pick = max(group, key=lambda b: b[4])
+            ux1 = min(b[0] for b in group)
+            uy1 = min(b[1] for b in group)
+            ux2 = max(b[2] for b in group)
+            uy2 = max(b[3] for b in group)
+            flt = any(self._box_row_filtered(b) for b in group)
+            # edge_min_dist：沿用置信度最高框（pick）的值（若存在）
+            # edge_min_dist = pick[8] if len(pick) > 8 else None
+            # 使用最大值
+            edge_min_dist = max(b[8] for b in group)
+            merged = [ux1, uy1, ux2, uy2, max_conf, pick[5], pick[6], flt, edge_min_dist]
+            filtered_boxes.append(merged)
 
         return [
             {
@@ -179,9 +207,52 @@ class ModelDetector:
                 "cls_id": int(box[5]),
                 "class_name": self.model.names[int(box[5])],
                 "detect_id": box[6],
+                "filter": bool(box[7]) if len(box) > 7 else False,
+                "edge_min_dist": (None if len(box) <= 8 or box[8] is None else float(box[8])),
             }
             for box in filtered_boxes
         ]
+
+    @staticmethod
+    def _box_row_filtered(box):
+        """列表格式检测框第 8 维为 True 时表示已标记过滤（不参与 merge 等）。"""
+        return len(box) > 7 and bool(box[7])
+
+    def _slice_local_box_prefilter(
+        self, result, actual_clip_w, actual_clip_h, padding, min_size, max_size,
+    ):
+        """
+        切片局部坐标下应用置信度、padding 越界、尺寸阈值，
+        并计算该框到切片有效边界的最小距离（edge_min_dist，像素）。
+
+        返回 (local_row, filtered, edge_min_dist)。
+        local_row 为长度 7 的列表 [x1,y1,x2,y2,conf,cls,detect_id]。
+        """
+        lr = list(result[:7])
+        if lr[4] < self.conf_thresh:
+            return lr, True, None
+
+        if padding:
+            if lr[0] >= actual_clip_w or lr[1] >= actual_clip_h:
+                return lr, True, None
+            lr[2] = min(lr[2], actual_clip_w)
+            lr[3] = min(lr[3], actual_clip_h)
+
+        w_b = lr[2] - lr[0]
+        h_b = lr[3] - lr[1]
+        if min_size and (w_b < min_size or h_b < min_size):
+            return lr, True, None
+        if max_size and (w_b > max_size or h_b > max_size):
+            return lr, True, None
+
+        edge_min_dist = float(
+            self._edge_min_dist_local(
+                lr[0], lr[1], lr[2], lr[3],
+                clip_w=actual_clip_w,
+                clip_h=actual_clip_h,
+            )
+        )
+        return lr, False, edge_min_dist
 
     def _convert_result(self, results):
         return [
@@ -194,6 +265,7 @@ class ModelDetector:
                 "cls_id": int(box[5]),
                 "class_name": self.model.names[int(box[5])],
                 "detect_id": box[6],
+                "filter": False,
             }
             for idx, box in enumerate(results)
         ]
@@ -201,12 +273,15 @@ class ModelDetector:
     @staticmethod
     def draw(img, results):
         import cv2
-        # 调试展示图片
+        # 调试：全部框绘制；filter=True 灰色，filter=False 红色
         for result in results:
             x1, y1, x2, y2 = result["x1"], result["y1"], result["x2"], result["y2"]
-            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(img, f"{result['class_name']}-{result['conf']:.2f}", (x1, y1 - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+            color = (180, 180, 180) if result.get("filter") else (0, 0, 255)
+            cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+            cv2.putText(
+                img, f"{result['class_name']}-{result['conf']:.2f}", (x1, y1 - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 2, color, 2,
+            )
 
         cv2.imshow("img", img)
         cv2.waitKey(0)
@@ -230,9 +305,109 @@ class ModelDetector:
         min_edge_distance = min(x1, y1, clip_w - x2, clip_h - y2)
         return min_edge_distance < edge_reject_distance
 
+    @staticmethod
+    def _parse_detect_clip_origin(detect_id):
+        if not detect_id or not isinstance(detect_id, str):
+            return None
+        parts = detect_id.split("-", 1)
+        if len(parts) != 2:
+            return None
+        try:
+            return int(parts[0]), int(parts[1])
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _min_dist_box_to_clip_rect(x1, y1, x2, y2, clip_x1, clip_y1, clip_x2, clip_y2):
+        """全图坐标下，框到切片矩形四边的最小距离（像素，下限为 0）。"""
+        return min(
+            max(0, x1 - clip_x1),
+            max(0, clip_x2 - x2),
+            max(0, y1 - clip_y1),
+            max(0, clip_y2 - y2),
+        )
+
+    @staticmethod
+    def _edge_min_dist_local(x1, y1, x2, y2, clip_w, clip_h):
+        """切片局部坐标下，框到切片有效矩形四边的最小距离（像素，下限为 0）。"""
+        return min(
+            max(0, x1),
+            max(0, y1),
+            max(0, clip_w - x2),
+            max(0, clip_h - y2),
+        )
+
+    def _edge_min_dist_for_detection(self, det, w, h, clip_size):
+        """
+        切片推理结果（全图坐标）到所属切片有效边界的最近距离；无法解析时返回 None。
+        """
+        origin = self._parse_detect_clip_origin(det.get("detect_id", ""))
+        if origin is None or not clip_size:
+            return None
+        clip_x1, clip_y1 = origin
+        clip_x2 = min(w, clip_x1 + clip_size)
+        clip_y2 = min(h, clip_y1 + clip_size)
+        return self._min_dist_box_to_clip_rect(
+            det["x1"], det["y1"], det["x2"], det["y2"],
+            clip_x1, clip_y1, clip_x2, clip_y2,
+        )
+
+    def _apply_post_merge_edge_filter(
+        self, results, w, h, clip_size,
+        edge_reject_distance, edge_reject_conf_threshold,
+    ):
+        """
+        merge 之后：为每条结果写入 edge_min_dist；当距离阈值生效且满足滤除条件时
+        将 det['filter'] 置为 True（不删除条目，由 predict 对外返回前剥离）。
+        """
+        if not results:
+            return results
+
+        out = []
+        for det in results:
+            det = dict(det)
+            det.setdefault("filter", False)
+
+            dm = det.get("edge_min_dist", None)
+            if dm is None:
+                dm = self._edge_min_dist_for_detection(det, w, h, clip_size)
+            if dm is not None:
+                dm = float(max(0.0, float(dm)))
+                det["edge_min_dist"] = dm
+            else:
+                det["edge_min_dist"] = None
+
+            if det["filter"]:
+                out.append(det)
+                continue
+
+            if edge_reject_distance is None or edge_reject_distance <= 0:
+                out.append(det)
+                continue
+
+            if dm is None:
+                out.append(det)
+                continue
+
+            # 阈值高于切片阈值
+            if edge_reject_conf_threshold and det["conf"] > edge_reject_conf_threshold and dm > 2:
+                out.append(det)
+                continue
+
+            # 距离大于等于边缘距离
+            if dm >= edge_reject_distance:
+                out.append(det)
+                continue
+
+            det["filter"] = True
+            out.append(det)
+
+        return out
+
     def predict(self, image, clip_size=2500, overlap_size=800,
                 padding=False, debug=False, debug_clip=False,
                 min_size=5, max_size=None, edge_reject_distance=0,
+                edge_reject_conf_threshold=None,
                 device=None,
                 ):
         """
@@ -242,25 +417,32 @@ class ModelDetector:
         :param clip_size: 按照正方形切片，如果大于或者等于全图，不切
         :param overlap_size: 多个切片重叠区域像素大小
         :param padding: 当为True时，边缘切片不足正方形会往右或往下填充全黑像素扩展为正方形
-        :param edge_reject_distance: 切片边缘过滤阈值（像素），<=0 表示关闭
+        :param edge_reject_distance: merge 之后切片边缘距离阈值（像素），<=0 表示不按距离滤除
+        :param edge_reject_conf_threshold: merge 之后与距离联合过滤的置信度上限（不含）；
+            None 时使用 self.conf_thresh。若需「仅按距离、忽略置信度」可传入大于 1 的值。
         :param debug: 调试用
         :return:
         """
         w = image.shape[1]
         h = image.shape[0]
         all_box = []
-        if not clip_size or not overlap_size and (clip_size >= w and clip_size >= h or clip_size <= overlap_size <= 1):
-            results = self._predict(image, self.conf_thresh, device=device)
+        kwargs = {}
+        if not clip_size or not overlap_size or (clip_size >= w and clip_size >= h or clip_size <= overlap_size <= 1):
+            # kwargs["imgsz"] = clip_size
+            # kwargs["overlap"] = overlap_size/clip_size
+
+            results = self._predict(image, self.conf_thresh, device=device, **kwargs)
             results = self._convert_result(results)
             if debug:
                 self.draw(image, results)
 
-            return results
+            return [r for r in results if not r.get("filter")]
 
         # 切片
         for clip_x1, clip_y1, clip_x2, clip_y2 in get_clip(w, h, clip_size, overlap_size):
             clip = image[clip_y1:clip_y2, clip_x1:clip_x2]
-
+            # 自适应直方图均衡
+            # clip = enhance_contrast(clip)
             # padding: 边缘切片不足正方形时，往右或往下填充全黑像素扩展为正方形
             actual_clip_w = clip_x2 - clip_x1  # 真实切片宽度（padding前）
             actual_clip_h = clip_y2 - clip_y1  # 真实切片高度（padding前）
@@ -276,64 +458,33 @@ class ModelDetector:
 
             # results = self._predict(clip, conf=self.conf_merge, detect_id=f"{clip_x1}-{clip_y1}", device=device)
             results = self._predict(clip, conf=self.conf_merge, detect_id=f"{clip_x1}-{clip_y1}", device=device)
-            filtered_clip_results = []
 
-            # 校准坐标
+            # 校准坐标并带上 filter 标记（第 8 维）
             for result in results:
-                local_result = result.copy()
-                # 置信度过滤
-                if local_result[4] < self.conf_thresh:
-                    continue
+                lr, flt, edge_min_dist = self._slice_local_box_prefilter(
+                    result, actual_clip_w, actual_clip_h, padding, min_size, max_size,
+                )
+                global_row = lr[:7] + [flt, edge_min_dist]
+                global_row[0] += clip_x1
+                global_row[1] += clip_y1
+                global_row[2] += clip_x1
+                global_row[3] += clip_y1
+                all_box.append(global_row)
 
-                # 如果有 padding，限制检测框在真实图像范围内，丢弃完全落在填充区域的框
-                if padding:
-                    # 框完全在填充区域内，丢弃
-                    if local_result[0] >= actual_clip_w or local_result[1] >= actual_clip_h:
-                        continue
-                    # 限制 x2, y2 不超过真实切片边界
-                    local_result[2] = min(local_result[2], actual_clip_w)
-                    local_result[3] = min(local_result[3], actual_clip_h)
-
-                # 如果有尺寸阈值，则过滤
-                if min_size and ((local_result[2] - local_result[0]) < min_size or (local_result[3] - local_result[1]) < min_size):
-                    continue
-
-                if max_size and ((local_result[2] - local_result[0]) > max_size or (local_result[3] - local_result[1]) > max_size):
-                    continue
-
-                # 切片模式下过滤靠近切片边缘的框，避免边缘截断框干扰后续 merge
-                if self._is_near_clip_edge(local_result, actual_clip_w, actual_clip_h, edge_reject_distance):
-                    continue
-
-                filtered_clip_results.append(local_result.copy())
-
-                local_result[0] += clip_x1
-                local_result[1] += clip_y1
-                local_result[2] += clip_x1
-                local_result[3] += clip_y1
-
-                all_box.append(local_result)
-
-            if debug_clip and results:
+            if debug_clip:
                 import cv2
                 clip_debug = clip.copy()
 
-                # 原始检出框：灰色
                 for result in results:
-                    bx1, by1, bx2, by2 = result[:4]
-                    cv2.rectangle(clip_debug, (bx1, by1), (bx2, by2), (180, 180, 180), 2)
-                    cv2.putText(
-                        clip_debug, f"{result[5]}-{result[4]:.2f}", (bx1, by1 - 10),
-                        fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(180, 180, 180), thickness=1
+                    lr, flt, _edge_min_dist = self._slice_local_box_prefilter(
+                        result, actual_clip_w, actual_clip_h, padding, min_size, max_size,
                     )
-
-                # 过滤后保留框：红色
-                for result in filtered_clip_results:
-                    bx1, by1, bx2, by2 = result[:4]
-                    cv2.rectangle(clip_debug, (bx1, by1), (bx2, by2), (0, 0, 255), 2)
+                    bx1, by1, bx2, by2 = lr[:4]
+                    color = (180, 180, 180) if flt else (0, 0, 255)
+                    cv2.rectangle(clip_debug, (bx1, by1), (bx2, by2), color, 2)
                     cv2.putText(
-                        clip_debug, f"{result[5]}-{result[4]:.2f}", (bx1, by1 - 10),
-                        fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0, 0, 255), thickness=1
+                        clip_debug, f"{lr[5]}-{lr[4]:.2f}", (bx1, by1 - 10),
+                        fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=color, thickness=1,
                     )
 
                 window_name = (
@@ -344,9 +495,14 @@ class ModelDetector:
                 cv2.waitKey(0)
                 cv2.destroyWindow(window_name)
 
-        results = self.merge_ior( all_box)
+        results = self.merge_ior(all_box)
+        results = self._apply_post_merge_edge_filter(
+            results, w, h, clip_size,
+            edge_reject_distance=edge_reject_distance,
+            edge_reject_conf_threshold=edge_reject_conf_threshold,
+        )
 
         if debug:
             self.draw(image, results)
-        return results
+        return [r for r in results if not r.get("filter")]
 

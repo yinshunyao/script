@@ -36,7 +36,7 @@ class PredictSize:
                  cls_list, cls_model_path=None, offset_rate=1.2,
                  conf_thresh=0.3, conf_merge=0.1,
                  iou_threshold=0.3, ior_threshold=0.4,
-                 device=None):
+                 device=None, augment=False):
         """
         初始化检测和分类预测器（一次实例化，重复使用）
 
@@ -75,7 +75,7 @@ class PredictSize:
             conf_merge=conf_merge,
             iou_threshold=iou_threshold,
             ior_threshold=ior_threshold,
-            device=device,
+            device=device, augment=augment
         )
 
         # ---------- 加载分类模型（可选） ----------
@@ -201,7 +201,7 @@ class PredictSize:
     #  绘制结果
     # ------------------------------------------------------------------ #
     @staticmethod
-    def _draw_results(image, results, draw_edge_px=False, clip_size=None):
+    def _draw_results(image, results, draw_edge_px=False, clip_size=None, debug_filter_palette=False):
         """
         将检测和分类结果绘制到图片上
 
@@ -209,14 +209,16 @@ class PredictSize:
         :param results:       predict 返回的结果列表
         :param draw_edge_px:  True 时在标签区增加一行「edge-N」：框到所属切片边缘的像素距离最小值 N
         :param clip_size:     与推理时切片边长一致，用于由 detect_id 还原切片右下边界
+        :param debug_filter_palette: True 时按 filter 上色：未过滤红、已过滤灰（调试用）
         :return: 绘制后的图像副本
         """
         img_draw = image.copy()
         h_img, w_img = image.shape[:2]
 
-        # 颜色方案: 分类/检测目标用绿色，other 用灰色
-        color_cls = (0, 255, 0)
+        # 颜色方案: 对外输出图与 debug 一致——有效/输出框红色，other 灰色；debug_filter 模式为已过滤灰
+        color_out = (0, 0, 255)
         color_other = (180, 180, 180)
+        color_drop_debug = (180, 180, 180)
 
         for r in results:
             x1, y1, x2, y2 = r["x1"], r["y1"], r["x2"], r["y2"]
@@ -224,8 +226,11 @@ class PredictSize:
             cls_conf = r.get("cls_conf", 0.0)
             det_conf = r.get("conf", 0.0)
 
-            is_other = (cls_name == "other")
-            color = color_other if is_other else color_cls
+            if debug_filter_palette:
+                color = color_drop_debug if r.get("filter") else color_out
+            else:
+                is_other = (cls_name == "other")
+                color = color_other if is_other else color_out
 
             # 绘制矩形框
             cv2.rectangle(img_draw, (x1, y1), (x2, y2), color, 2)
@@ -234,12 +239,15 @@ class PredictSize:
             label = f"{cls_name} det:{det_conf:.2f} cls:{cls_conf:.2f}"
             edge_label = None
             if draw_edge_px and clip_size:
-                origin = PredictSize._parse_detect_clip_origin(r.get("detect_id", ""))
-                if origin is not None:
-                    cx1, cy1 = origin
-                    m = PredictSize._min_dist_to_clip_edge(
-                        x1, y1, x2, y2, cx1, cy1, clip_size, w_img, h_img
-                    )
+                m = r.get("edge_min_dist")
+                if m is None:
+                    origin = PredictSize._parse_detect_clip_origin(r.get("detect_id", ""))
+                    if origin is not None:
+                        cx1, cy1 = origin
+                        m = PredictSize._min_dist_to_clip_edge(
+                            x1, y1, x2, y2, cx1, cy1, clip_size, w_img, h_img
+                        )
+                if m is not None:
                     edge_label = f"edge-{int(round(m))}"
 
             # 文字背景
@@ -291,7 +299,9 @@ class PredictSize:
     # ------------------------------------------------------------------ #
     def predict(self, image, clip_size=2500, overlap_size=800,
                 output=None, image_name=None, debug=False, debug_clip=False,
-                edge_reject_distance=5):
+                edge_reject_distance=5,
+                edge_reject_conf_threshold=None,
+                edge_reject_cls_conf_threshold=None):
         """
         完成检测和分类推理
 
@@ -305,7 +315,9 @@ class PredictSize:
         :param image:        输入图像 (numpy array, BGR)
         :param clip_size:    切片大小, >= 全图时不切片
         :param overlap_size: 切片重叠大小 (平移算法)
-        :param edge_reject_distance: 切片边缘过滤阈值（像素），<=0 表示关闭
+        :param edge_reject_distance: merge 之后到切片边缘距离阈值（像素），<=0 表示不按距离滤除
+        :param edge_reject_conf_threshold: 与距离联合过滤的检测置信度阈值（不含），None 时使用检测器 conf_thresh
+        :param edge_reject_cls_conf_threshold: 与距离联合过滤的分类置信度阈值（不含），None 时默认 0.0（等价不因分类置信度触发）
         :param output:       保存目录路径, 为 None 则不保存绘制结果
         :param image_name:   保存的文件名 (如 "test.jpg"), 为 None 时使用默认名 "result.jpg"
         :param debug:        调试模式
@@ -319,13 +331,22 @@ class PredictSize:
             clip_size=clip_size,
             overlap_size=overlap_size,
             debug=debug, debug_clip=debug_clip,
-            edge_reject_distance=edge_reject_distance,
+            # 边缘过滤依赖分类置信度，因此在本层（分类后）统一处理；
+            # detector 层传 0 仅用于保留 edge_min_dist 字段，不在 detector 层做丢弃。
+            edge_reject_distance=0,
+            edge_reject_conf_threshold=None,
         )
 
         h_img, w_img = image.shape[:2]
-        results = []
+        final_results = []
 
         for det in detections:
+            det = dict(det)
+            det.setdefault("filter", False)
+            if det.get("filter"):
+                final_results.append(det)
+                continue
+
             # ---- 第 2 步: 尺寸过滤 ----
             if self._filter_by_size(det):
                 if self.classifier is not None:
@@ -339,7 +360,7 @@ class PredictSize:
                     if crop.size == 0:
                         det["cls_name"] = "other"
                         det["cls_conf"] = 0.0
-                        results.append(det)
+                        final_results.append(det)
                         continue
 
                     # ---- 第 3 步: 分类 ----
@@ -348,22 +369,56 @@ class PredictSize:
                     if cls_result is not None:
                         det["cls_name"] = cls_result["class_name"]
                         det["cls_conf"] = cls_result["conf"]
+                        det["cls_top3"] = cls_result.get("top3", [])
                     else:
                         det["cls_name"] = "other"
                         det["cls_conf"] = 0.0
+                        det["cls_top3"] = []
                 else:
                     # 无分类模型，直接使用检测模型输出的类别
                     det["cls_name"] = det.get("class_name", "unknown")
                     det["cls_conf"] = det.get("conf", 0.0)
+                    det["cls_top3"] = []
             else:
-                # 不在尺寸范围内 -> other
+                # 不在尺寸范围内 -> 标记过滤，不跑分类
                 det["cls_name"] = "other"
                 det["cls_conf"] = 0.0
+                det["cls_top3"] = []
+                det["filter"] = True
 
-            results.append(det)
+            final_results.append(det)
+
+        # ---- 第 3.5 步: merge 后边缘距离过滤（依赖分类结果）----
+        if edge_reject_cls_conf_threshold is None:
+            edge_reject_cls_conf_threshold = 0.0
+        det_conf_threshold = (
+            self.detector.conf_thresh
+            if edge_reject_conf_threshold is None
+            else float(edge_reject_conf_threshold)
+        )
+        if edge_reject_distance is not None and edge_reject_distance > 0:
+            for det in final_results:
+                if det.get("filter"):
+                    continue
+                # 分类为 other 的不处理（不做该边缘距离过滤）
+                if det.get("cls_name") == "other":
+                    continue
+                dm = det.get("edge_min_dist", None)
+                if dm is None:
+                    continue
+                try:
+                    dm = float(dm)
+                except Exception:
+                    continue
+                # 边缘距离大于等于阈值：有效，保留
+                if dm >= float(edge_reject_distance):
+                    continue
+                # 边缘距离小于阈值：不直接过滤，仅当检测置信度或分类置信度低于阈值时过滤
+                if det.get("conf", 0.0) < det_conf_threshold or det.get("cls_conf", 0.0) < float(edge_reject_cls_conf_threshold):
+                    det["filter"] = True
 
         # todo 红河临时方案，灰飞虱转成白背飞虱
-        for det in results:
+        for det in final_results:
             cls_name = det["cls_name"]
             if cls_name == "huifeishi":
                 det["cls_name"] = "baifeifeishi"
@@ -376,13 +431,18 @@ class PredictSize:
             draw_edge = self._uses_clip_predict_path(
                 w_img, h_img, clip_size, overlap_size
             )
+            draw_rows = final_results if debug else [r for r in final_results if not r.get("filter")]
             img_draw = self._draw_results(
-                image, results, draw_edge_px=draw_edge, clip_size=clip_size
+                image,
+                draw_rows,
+                draw_edge_px=draw_edge,
+                clip_size=clip_size,
+                debug_filter_palette=debug,
             )
             cv2.imwrite(save_path, img_draw)
             logging.info(f"结果图片已保存: {save_path}")
 
-        return results
+        return [r for r in final_results if not r.get("filter")]
 
     # ------------------------------------------------------------------ #
     #  释放资源
@@ -419,23 +479,34 @@ if __name__ == "__main__":
     # detect_model_path = model_path / "kuangxuan_0209.pt"
     detect_model_path = model_path / "daofeishi-detect-0405.pt"
     # detect_model_path = model_path / "daofeishi-detect-040502.pt"
-    cls_model_path = model_path / "daofeishi-cls.pt"
+    detect_model_path = Path('/Users/shunyaoyin/Documents/code/models/daofeishi-detect-0405.pt')
+    # detect_model_path = Path('/Users/shunyaoyin/Documents/code/models-temp/train-daofeishi-041501/weights/best.pt')
+    cls_model_path = Path('/Users/shunyaoyin/Documents/code/models/daofeishi-cls.pt')
     # 输入：可以是单张图片路径，也可以是文件夹路径（递归遍历子目录）
-    # input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/daofeishi-0410-红河'
-    # input_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/daofeishi-0401-红河测试"
-    # input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/稻飞虱 0209-测试'
-    input_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/红河问题/0413反馈问题/2043678055433539584-2026-04-13 21：09：15.jpg'
+    # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-边缘0的问题'
+    input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-测试数据集'
+    # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-边缘0的问题/2039010078717022208_018_1040_1040.jpg'
+    # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-边缘0的问题/00_20260414145928_103_95.png'
+    # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-边缘0的问题'
+    # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-边缘0的问题/2039010078717022208_006_760_760-切片漏检.jpg'
     # 输出目录：保存绘制结果（保持与输入相同的子目录结构和文件名）
-    output_dir = input_path + "_0405"
+    output_dir = input_path + "_0415_t7"
     clip_size = 640
     overlap_size = 120
+    # 正常参数
+    conf_thresh = 0.3
+    edge_reject_distance = 1
+    edge_reject_conf_threshold = 0.5
+    edge_reject_cls_conf_threshold = 0.66
+
     predict_debug = False
     debug_clip = False
-    edge_reject_distance = 5
-    conf_thresh = 0.65
     # 漏检排查
-    # edge_reject_distance = 5
+    # edge_reject_conf_threshold = 0
+    # edge_reject_distance = 0
     # conf_thresh = 0.3
+    # clip_size = 1280
+    # overlap_size = 200
     # size_config_path = current_dir / "size.json"
     size_config_path = None
     # clip_size = 1280
@@ -484,6 +555,8 @@ if __name__ == "__main__":
         results = predictor.predict(
             img, clip_size=clip_size, overlap_size=overlap_size,
             edge_reject_distance=edge_reject_distance,
+            edge_reject_conf_threshold=edge_reject_conf_threshold,
+            edge_reject_cls_conf_threshold=edge_reject_cls_conf_threshold,
             output=save_sub_dir,
             image_name=rel_path.name,
             debug=predict_debug,

@@ -39,17 +39,31 @@ class ModelCls:
 
     def predict(self, image, device=None):
         try:
-            results = self.model.predict(image, device=device or self.device)
+            results = self.model.predict(image, verbose=False, device=device or self.device)
             if not results:
                 logging.error(f"模型{self.model_path}推理结果为空")
                 return None
 
             probe = results[0].probs
             class_id = probe.top1
+            # 兼容「top3 置信度」使用场景：优先取 top5 的前 3 项（若不足则按实际长度返回）
+            top_ids = list(probe.top5) if hasattr(probe, "top5") and probe.top5 is not None else [class_id]
+            top_confs = list(probe.top5conf) if hasattr(probe, "top5conf") and probe.top5conf is not None else [probe.top1conf]
+            top3 = []
+            for i in range(min(3, len(top_ids), len(top_confs))):
+                cid = int(top_ids[i])
+                top3.append(
+                    {
+                        "class_id": cid,
+                        "class_name": self.names[cid],
+                        "conf": float(top_confs[i].item()),
+                    }
+                )
             return {
                 "class_id": class_id,
                 "class_name": self.names[class_id],
                 "conf": float(probe.top1conf.item()),
+                "top3": top3,
             }
         except Exception as e:
             logging.error(f"模型{self.model_path}推理异常:{e}", exc_info=True)
@@ -57,7 +71,7 @@ class ModelCls:
 
     def predictTop2(self, image, device=None):
         try:
-            results = self.model.predict(image, device=device or self.device)
+            results = self.model.predict(image, verbose=False, device=device or self.device)
             if not results:
                 logging.error(f"模型{self.model_path}推理结果为空")
                 return None

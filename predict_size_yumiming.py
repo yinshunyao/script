@@ -21,18 +21,23 @@ if __name__ == "__main__":
     PIC_EXT = {".jpg", ".jpeg", ".png"}
 
     # yumiming
-    cls_list = ['daozongjuanyeming','dongfangnianchong', 'erhuaming',
-'huangchizhuiyeyeming', 'laoshinianchong', 'yumiming']
+    cls_list = [
+        'daozongjuanyeming', 'dongfangnianchong', 'erhuaming', 'huangchizhuiyeyeming',
+        'laoshinianchong', 'yumiming', 'bazidilaohu-bei', 'bazidilaohu-fu', 'daming', 'taozhuming', 'yinwenyee']
+
     # detect_model_path =  current_dir / "yumiming-detect.pt"
-    detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/model/big6.pt"
+    detect_model_path = "/Users/shunyaoyin/Documents/code/models/big-041503.pt"
+    detect_model_path = "/Users/shunyaoyin/Documents/code/models-temp/train-big-0415-s5/weights/best.pt"
     cls_model_path = None
     # 输入：可以是单张图片路径，也可以是文件夹路径（递归遍历子目录）
-    input_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/data/test-data/虫情4模型测试数据"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-测试数据集"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-0401-红河"
+    input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/2044386241976750080.jpg"
     # input_path = "/Users/shunyaoyin/Documents/code/other/insect/data/稻飞虱和玉米螟/拍摄"
     # 输出目录：保存绘制结果（保持与输入相同的子目录结构和文件名）
-    output_dir = input_path + "_big6"
+    output_dir = input_path + "_0415-s5"
     clip_size = None
-    overlap_size = 200
+    overlap_size = 0
 
     # cls_list = ["hefeishi", "baibeifeishi", "huifeishi"]
     # ---- 实例化（只需一次） ----
@@ -45,7 +50,7 @@ if __name__ == "__main__":
         cls_list=cls_list,
         cls_model_path=cls_model_path,   # 可选，设为 None 则跳过分类
         offset_rate=1.2,
-        conf_thresh=0.65,
+        conf_thresh=0.3,
         ior_threshold=0.7,
         device=None,  # 自动检测
     )

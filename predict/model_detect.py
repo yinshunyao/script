@@ -12,14 +12,68 @@ from ultralytics import YOLO
 import numpy as np
 import cv2
 
+def _pad_background_value(clip):
+    """与 clip 同 dtype 的「白底」填充标量：uint8 为 255；浮点按 0~1 / 0~255 推断。"""
+    if clip.dtype == np.uint8:
+        return 255
+    if np.issubdtype(clip.dtype, np.floating):
+        if clip.size == 0:
+            return np.float32(1.0)
+        mx = float(np.max(clip))
+        return np.float32(1.0 if mx <= 1.0 else 255.0)
+    if np.issubdtype(clip.dtype, np.integer):
+        return int(np.iinfo(clip.dtype).max)
+    return 255
+
+
+def _pad_tile_to_clip_square(clip, actual_clip_w, actual_clip_h, clip_size):
+    """
+    将宽高均不超过 clip_size 的切片补成 clip_size×clip_size，原内容居中，空缺填白底。
+
+    :return: (padded_clip, off_x, off_y, pad_w, pad_h)；无需补全时返回 (clip, 0, 0, aw, ah)。
+    """
+    if actual_clip_w >= clip_size and actual_clip_h >= clip_size:
+        return clip, 0, 0, actual_clip_w, actual_clip_h
+    # 与分片边长一致：画布恒为 clip_size×clip_size（get_clip 保证单窗宽高 ≤ clip_size）
+    pad_w = clip_size
+    pad_h = clip_size
+    off_x = (pad_w - actual_clip_w) // 2
+    off_y = (pad_h - actual_clip_h) // 2
+    fill = _pad_background_value(clip)
+    if len(clip.shape) == 3:
+        padded = np.full((pad_h, pad_w, clip.shape[2]), fill, dtype=clip.dtype)
+    else:
+        padded = np.full((pad_h, pad_w), fill, dtype=clip.dtype)
+    padded[off_y : off_y + actual_clip_h, off_x : off_x + actual_clip_w] = clip
+    return padded, off_x, off_y, pad_w, pad_h
+
+
 def get_clip(w, h, clip_size, overlap_size):
-    # clip_size = 10, overlap_size = 2为例
-    # 0, 10; 8, 18; 16, 26
-    step = clip_size - overlap_size
-    if step <= 0:
-        step = 1  # 避免无限循环
-    for i in range(0, w, step):
-        for j in range(0, h, step):
+    """
+    生成切片滑窗坐标（左上、右下，右下为开区间）。
+
+    规则：
+    - **只有**当某个方向的边长 > clip_size 时，该方向才需要滑窗并使用 overlap_size。
+    - 当某个方向边长 <= clip_size 时，该方向只取起点 0（单窗），由上层 padding 补成正方形，
+      不再在该方向引入 overlap/多窗。
+
+    例：
+    - w > clip_size, h <= clip_size：x 方向滑窗，y 方向仅 j=0 一次（长边切片 + 短边 padding）
+    - w <= clip_size, h <= clip_size：仅一窗 (0,0,w,h)
+    """
+    # clip_size = 10, overlap_size = 2 为例
+    # x: 0,10; 8,18; 16,26 ...
+    def _step(length: int) -> int:
+        if length <= clip_size:
+            return clip_size  # range(0, length, clip_size) 只会产生起点 0
+        s = clip_size - overlap_size
+        return 1 if s <= 0 else s
+
+    step_x = _step(w)
+    step_y = _step(h)
+
+    for i in range(0, w, step_x):
+        for j in range(0, h, step_y):
             yield i, j, min(w, i + clip_size), min(h, j + clip_size)
 
 
@@ -97,6 +151,8 @@ class ModelDetector:
             kwargs['overlap'] = overlap
         pred = self.model.predict(image, verbose=False, device=device or self.device, augment=self.augment, **kwargs)
         results = []
+        if not pred or not pred[0].boxes:
+            return results
         for detection in pred[0].boxes:
             try:
                 box_conf = detection.conf.item()
@@ -233,10 +289,19 @@ class ModelDetector:
             return lr, True, None
 
         if padding:
-            if lr[0] >= actual_clip_w or lr[1] >= actual_clip_h:
+            # 局部坐标系原点为「真实切片」左上角；与有效像素矩形求交，去掉填充边上的模型输出
+            x1, y1, x2, y2 = lr[0], lr[1], lr[2], lr[3]
+            if x2 < x1:
+                x1, x2 = x2, x1
+            if y2 < y1:
+                y1, y2 = y2, y1
+            ix1 = max(0, x1)
+            iy1 = max(0, y1)
+            ix2 = min(actual_clip_w, x2)
+            iy2 = min(actual_clip_h, y2)
+            if ix1 >= ix2 or iy1 >= iy2:
                 return lr, True, None
-            lr[2] = min(lr[2], actual_clip_w)
-            lr[3] = min(lr[3], actual_clip_h)
+            lr[0], lr[1], lr[2], lr[3] = ix1, iy1, ix2, iy2
 
         w_b = lr[2] - lr[0]
         h_b = lr[3] - lr[1]
@@ -405,7 +470,7 @@ class ModelDetector:
         return out
 
     def predict(self, image, clip_size=2500, overlap_size=800,
-                padding=False, debug=False, debug_clip=False,
+                padding=True, debug=False, debug_clip=False,
                 min_size=5, max_size=None, edge_reject_distance=0,
                 edge_reject_conf_threshold=None,
                 device=None,
@@ -416,7 +481,8 @@ class ModelDetector:
         :param image:
         :param clip_size: 按照正方形切片，如果大于或者等于全图，不切
         :param overlap_size: 多个切片重叠区域像素大小
-        :param padding: 当为True时，边缘切片不足正方形会往右或往下填充全黑像素扩展为正方形
+        :param padding: 默认 True。边缘切片任一边小于 clip_size 则补成与分片边长一致的
+            clip_size×clip_size 正方形；原图居中、空缺白底；再将检测框坐标移回切片局部坐标。
         :param edge_reject_distance: merge 之后切片边缘距离阈值（像素），<=0 表示不按距离滤除
         :param edge_reject_conf_threshold: merge 之后与距离联合过滤的置信度上限（不含）；
             None 时使用 self.conf_thresh。若需「仅按距离、忽略置信度」可传入大于 1 的值。
@@ -443,21 +509,22 @@ class ModelDetector:
             clip = image[clip_y1:clip_y2, clip_x1:clip_x2]
             # 自适应直方图均衡
             # clip = enhance_contrast(clip)
-            # padding: 边缘切片不足正方形时，往右或往下填充全黑像素扩展为正方形
-            actual_clip_w = clip_x2 - clip_x1  # 真实切片宽度（padding前）
-            actual_clip_h = clip_y2 - clip_y1  # 真实切片高度（padding前）
+            actual_clip_w = clip_x2 - clip_x1  # 真实切片宽度（padding 前）
+            actual_clip_h = clip_y2 - clip_y1  # 真实切片高度（padding 前）
+            pad_off_x = pad_off_y = 0
             if padding and (actual_clip_w < clip_size or actual_clip_h < clip_size):
-                pad_h = max(clip_size, actual_clip_h)
-                pad_w = max(clip_size, actual_clip_w)
-                if len(clip.shape) == 3:
-                    padded = np.zeros((pad_h, pad_w, clip.shape[2]), dtype=clip.dtype)
-                else:
-                    padded = np.zeros((pad_h, pad_w), dtype=clip.dtype)
-                padded[:actual_clip_h, :actual_clip_w] = clip
-                clip = padded
+                clip, pad_off_x, pad_off_y, _pw, _ph = _pad_tile_to_clip_square(
+                    clip, actual_clip_w, actual_clip_h, clip_size
+                )
 
-            # results = self._predict(clip, conf=self.conf_merge, detect_id=f"{clip_x1}-{clip_y1}", device=device)
             results = self._predict(clip, conf=self.conf_merge, detect_id=f"{clip_x1}-{clip_y1}", device=device)
+
+            if pad_off_x or pad_off_y:
+                for r in results:
+                    r[0] -= pad_off_x
+                    r[1] -= pad_off_y
+                    r[2] -= pad_off_x
+                    r[3] -= pad_off_y
 
             # 校准坐标并带上 filter 标记（第 8 维）
             for result in results:
@@ -473,23 +540,27 @@ class ModelDetector:
 
             if debug_clip:
                 import cv2
+                # clip 已为填充后画布（与分片边长一致）；框坐标在「真实窗局部」系，需平移到画布上绘制
                 clip_debug = clip.copy()
+                dx, dy = pad_off_x, pad_off_y
 
                 for result in results:
                     lr, flt, _edge_min_dist = self._slice_local_box_prefilter(
                         result, actual_clip_w, actual_clip_h, padding, min_size, max_size,
                     )
                     bx1, by1, bx2, by2 = lr[:4]
+                    px1, py1, px2, py2 = bx1 + dx, by1 + dy, bx2 + dx, by2 + dy
                     color = (180, 180, 180) if flt else (0, 0, 255)
-                    cv2.rectangle(clip_debug, (bx1, by1), (bx2, by2), color, 2)
+                    cv2.rectangle(clip_debug, (px1, py1), (px2, py2), color, 2)
                     cv2.putText(
-                        clip_debug, f"{lr[5]}-{lr[4]:.2f}", (bx1, by1 - 10),
+                        clip_debug, f"{lr[5]}-{lr[4]:.2f}", (px1, py1 - 10),
                         fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=color, thickness=1,
                     )
 
+                ph, pw = clip_debug.shape[:2]
                 window_name = (
                     f"clip x:{clip_x1}-{clip_x2} y:{clip_y1}-{clip_y2} "
-                    f"size:{actual_clip_w}x{actual_clip_h}"
+                    f"padded:{pw}x{ph} tile:{actual_clip_w}x{actual_clip_h}"
                 )
                 cv2.imshow(window_name, clip_debug)
                 cv2.waitKey(0)

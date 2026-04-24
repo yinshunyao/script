@@ -36,7 +36,8 @@ class PredictSize:
                  cls_list, cls_model_path=None, offset_rate=1.2,
                  conf_thresh=0.3, conf_merge=0.1,
                  iou_threshold=0.3, ior_threshold=0.4,
-                 device=None, augment=False):
+                 device=None, augment=False, cls_pad_square=False,
+                 cls_gray_binarize=False):
         """
         初始化检测和分类预测器（一次实例化，重复使用）
 
@@ -50,6 +51,8 @@ class PredictSize:
         :param iou_threshold:     IOU 阈值
         :param ior_threshold:     IOR 阈值
         :param device:            设备类型 ('cuda', 'mps', 'cpu')，None 则自动检测
+        :param cls_pad_square:    分类前是否将非正方形裁剪白边补成正方形（与训练白边正方形一致）
+        :param cls_gray_binarize: 分类前是否先做灰度+CLAHE+Otsu 二值化再扩成三通道 BGR（默认关）
         """
         self.cls_list = cls_list
         self.offset_rate = offset_rate
@@ -80,7 +83,11 @@ class PredictSize:
 
         # ---------- 加载分类模型（可选） ----------
         if cls_model_path is not None:
-            self.classifier = ModelCls(model_path=cls_model_path)
+            self.classifier = ModelCls(
+                model_path=cls_model_path,
+                pad_square=cls_pad_square,
+                gray_binarize=cls_gray_binarize,
+            )
         else:
             self.classifier = None
             logging.info("未传递分类模型路径，将跳过分类步骤，仅做检测+尺寸过滤")
@@ -301,7 +308,12 @@ class PredictSize:
                 output=None, image_name=None, debug=False, debug_clip=False,
                 edge_reject_distance=5,
                 edge_reject_conf_threshold=None,
-                edge_reject_cls_conf_threshold=None):
+                edge_reject_cls_conf_threshold=None,
+                cls_top1_conf_threshold=None,
+                cls_pad_square=None,
+                cls_gray_binarize=None,
+                detect_pad_square=True,
+                return_full_final=False):
         """
         完成检测和分类推理
 
@@ -318,6 +330,12 @@ class PredictSize:
         :param edge_reject_distance: merge 之后到切片边缘距离阈值（像素），<=0 表示不按距离滤除
         :param edge_reject_conf_threshold: 与距离联合过滤的检测置信度阈值（不含），None 时使用检测器 conf_thresh
         :param edge_reject_cls_conf_threshold: 与距离联合过滤的分类置信度阈值（不含），None 时默认 0.0（等价不因分类置信度触发）
+        :param cls_top1_conf_threshold: 分类 top1 置信度门限；不为 None 时，仅当 top1 置信度 **大于** 该值才保留模型类别名，
+                否则将 cls_name 置为 other（cls_conf 仍为 top1 原始值便于排查）。None 表示不做该判定。
+        :param cls_pad_square: 本次推理是否对分类裁剪做白边正方形 padding；None 时用构造 PredictSize 时的默认值
+        :param cls_gray_binarize: 本次是否对分类裁剪做灰度+CLAHE+Otsu；None 时用构造时的默认值
+        :param detect_pad_square: 检测切片不足 clip_size 时是否补成正方形（原图居中、黑边）；默认 True
+        :param return_full_final: 为 True 时返回含 filter 标记在内的全部 final_results；默认 False 仅返回未过滤框
         :param output:       保存目录路径, 为 None 则不保存绘制结果
         :param image_name:   保存的文件名 (如 "test.jpg"), 为 None 时使用默认名 "result.jpg"
         :param debug:        调试模式
@@ -330,6 +348,7 @@ class PredictSize:
             image,
             clip_size=clip_size,
             overlap_size=overlap_size,
+            padding=bool(detect_pad_square),
             debug=debug, debug_clip=debug_clip,
             # 边缘过滤依赖分类置信度，因此在本层（分类后）统一处理；
             # detector 层传 0 仅用于保留 edge_min_dist 字段，不在 detector 层做丢弃。
@@ -365,11 +384,19 @@ class PredictSize:
 
                     # ---- 第 3 步: 分类 ----
                     dev = getattr(self.detector, "device", None)
-                    cls_result = self.classifier.predict(crop, device=dev)
+                    cls_result = self.classifier.predict(
+                        crop,
+                        device=dev,
+                        pad_square=cls_pad_square,
+                        gray_binarize=cls_gray_binarize,
+                    )
                     if cls_result is not None:
                         det["cls_name"] = cls_result["class_name"]
                         det["cls_conf"] = cls_result["conf"]
                         det["cls_top3"] = cls_result.get("top3", [])
+                        if cls_top1_conf_threshold is not None:
+                            if det["cls_conf"] <= float(cls_top1_conf_threshold):
+                                det["cls_name"] = "other"
                     else:
                         det["cls_name"] = "other"
                         det["cls_conf"] = 0.0
@@ -423,6 +450,9 @@ class PredictSize:
             if cls_name == "huifeishi":
                 det["cls_name"] = "baifeifeishi"
 
+            if cls_name == "zijiaochie":
+                det["cls_name"] = "zitiaochie"
+
         # ---- 第 4 步: 保存绘制结果 ----
         if output is not None:
             os.makedirs(output, exist_ok=True)
@@ -442,6 +472,8 @@ class PredictSize:
             cv2.imwrite(save_path, img_draw)
             logging.info(f"结果图片已保存: {save_path}")
 
+        if return_full_final:
+            return final_results
         return [r for r in final_results if not r.get("filter")]
 
     # ------------------------------------------------------------------ #
@@ -482,6 +514,7 @@ if __name__ == "__main__":
     detect_model_path = Path('/Users/shunyaoyin/Documents/code/models/daofeishi-detect-0405.pt')
     # detect_model_path = Path('/Users/shunyaoyin/Documents/code/models-temp/train-daofeishi-041501/weights/best.pt')
     cls_model_path = Path('/Users/shunyaoyin/Documents/code/models/daofeishi-cls.pt')
+    # cls_model_path = Path('/Users/shunyaoyin/Downloads/train5/weights/epoch28.pt')
     # 输入：可以是单张图片路径，也可以是文件夹路径（递归遍历子目录）
     # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-边缘0的问题'
     input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-测试数据集'
@@ -489,8 +522,9 @@ if __name__ == "__main__":
     # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-边缘0的问题/00_20260414145928_103_95.png'
     # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-边缘0的问题'
     # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-边缘0的问题/2039010078717022208_006_760_760-切片漏检.jpg'
+    input_path = '/Users/shunyaoyin/Downloads/2044389074738368512.jpg'
     # 输出目录：保存绘制结果（保持与输入相同的子目录结构和文件名）
-    output_dir = input_path + "_0415_t7"
+    output_dir = input_path + "_0405"
     clip_size = 640
     overlap_size = 120
     # 正常参数
@@ -501,6 +535,7 @@ if __name__ == "__main__":
 
     predict_debug = False
     debug_clip = False
+    cls_pad_square = True
     # 漏检排查
     # edge_reject_conf_threshold = 0
     # edge_reject_distance = 0
@@ -520,6 +555,7 @@ if __name__ == "__main__":
         offset_rate=1.2,
         conf_thresh=conf_thresh,
         device=None,  # 自动检测
+
     )
 
     # ---- 收集图片列表 ----
@@ -560,7 +596,8 @@ if __name__ == "__main__":
             output=save_sub_dir,
             image_name=rel_path.name,
             debug=predict_debug,
-            debug_clip=debug_clip
+            debug_clip=debug_clip,
+            cls_pad_square=cls_pad_square
         )
 
         print(f"[{idx}/{len(image_files)}] {rel_path}  检测到 {len(results)} 个目标")

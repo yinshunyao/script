@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# @Detail  : 在 predict_size_yumiming 推理流程上，与源目录 Pascal VOC 标注比对验证；
-#            几何匹配用 IoR（与 model_detect.ior 一致），类别用 CLASS_MERGE_TO_GROUPS 归一后比较。
+# @Detail  : 在 predict_size 推理流程上，与源目录 Pascal VOC 标注比对验证；
+#            几何匹配默认 IoU 阈值；可选 IoR（与 model_detect.ior 一致）。类别用 CLASS_MERGE_TO_GROUPS 归一后比较。
 import logging
 import os
 import sys
@@ -26,8 +26,40 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from script.predict.model_detect import ior
-from predict_size_daofeishi import PredictSize
-from predict_size_yumiming import _write_pascal_voc_xml
+from predict_size import PredictSize, write_pascal_voc_xml
+
+
+def _dedup_by_cls_iou(rows: list[dict], *, iou_threshold: float) -> list[dict]:
+    """
+    后处理去重：按 cls_name 分组做贪心 NMS（基于本文件 box_iou）。
+    用于解决“检测阶段不同 cls 都保留，但分类阶段映射到同一 cls_name”导致的重复框。
+    """
+    thr = float(iou_threshold)
+    if thr <= 0 or not rows:
+        return rows
+    out: list[dict] = []
+    by_cls: dict[str, list[dict]] = {}
+    for r in rows:
+        by_cls.setdefault(str(r.get("cls_name", "")), []).append(r)
+    for _cls, rs in by_cls.items():
+        rs = sorted(rs, key=lambda x: float(x.get("conf", 0.0) or 0.0), reverse=True)
+        kept: list[dict] = []
+        for r in rs:
+            drop = False
+            for k in kept:
+                iou = float(
+                    box_iou(
+                        [r["x1"], r["y1"], r["x2"], r["y2"]],
+                        [k["x1"], k["y1"], k["x2"], k["y2"]],
+                    )
+                )
+                if iou >= thr:
+                    drop = True
+                    break
+            if not drop:
+                kept.append(r)
+        out.extend(kept)
+    return out
 
 
 def _build_class_alias_map(
@@ -50,6 +82,15 @@ def normalize_class_name(raw: str, merge: dict[str, list[str]] | None) -> str:
         return ""
     alias = _build_class_alias_map(merge)
     return alias.get(raw, raw)
+
+
+def is_metric_ignored_other(raw: str, merge: dict[str, list[str]] | None) -> bool:
+    """
+    ``other`` 类在生产环境不输出；验证脚本中该类不参与 TP/FP/FN、按类统计、混淆矩阵等指标计算。
+    判定基于 ``normalize_class_name`` 后与 ``other`` 等价（忽略大小写）。
+    """
+    norm = normalize_class_name(str(raw or ""), merge)
+    return str(norm).strip().lower() == "other"
 
 
 def _build_class_groups(merge: dict[str, list[str]] | None) -> dict[str, set[str]]:
@@ -185,22 +226,64 @@ def _box_tuple(d: dict) -> list[int]:
     return [int(d["x1"]), int(d["y1"]), int(d["x2"]), int(d["y2"])]
 
 
-def match_pred_gt_ior(
+def _rect_iou(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> float:
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    ix1, iy1 = max(ax1, bx1), max(ay1, by1)
+    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+    iw, ih = max(0, ix2 - ix1), max(0, iy2 - iy1)
+    inter = iw * ih
+    if inter <= 0:
+        return 0.0
+    a_area = max(0, ax2 - ax1) * max(0, ay2 - ay1)
+    b_area = max(0, bx2 - bx1) * max(0, by2 - by1)
+    denom = a_area + b_area - inter
+    return float(inter) / float(denom) if denom > 0 else 0.0
+
+
+def box_iou(box1, box2) -> float:
+    """
+    两框 IoU（交并比），与常见检测评估一致。
+    `box*` 为 [x1,y1,x2,y2] 或与 `ior` 相同的前四元可索引序列。
+    """
+    a = (int(box1[0]), int(box1[1]), int(box1[2]), int(box1[3]))
+    b = (int(box2[0]), int(box2[1]), int(box2[2]), int(box2[3]))
+    return _rect_iou(a, b)
+
+
+def match_pred_gt(
     preds: list[dict],
     gts: list[dict],
-    ior_threshold: float,
+    threshold: float,
+    metric: str = "iou",
 ) -> tuple[list[tuple[int, int, float]], set[int], set[int]]:
     """
-    按 IoR 贪心匹配 pred 与 gt（与检测合并同类思路一致，阈值默认 0.8）。
-    返回 (matches (pred_idx, gt_idx, ior), matched_pred_indices, matched_gt_indices)。
+    贪心匹配 pred 与 gt。
+
+    :param metric: ``"iou"``（默认，交并比）或 ``"ior"``（交集/最小框面积，与 model_detect.ior 一致）。
+    :return: (matches (pred_idx, gt_idx, score), matched_pred_indices, matched_gt_indices)。
     """
+    m = (metric or "iou").lower().strip()
+    if m == "iou":
+
+        def _score(bp: list[int], bg: list[int]) -> float:
+            return box_iou(bp, bg)
+
+    elif m == "ior":
+
+        def _score(bp: list[int], bg: list[int]) -> float:
+            return float(ior(bp, bg))
+
+    else:
+        raise ValueError("metric must be 'iou' or 'ior', got {0!r}".format(metric))
+
     pairs: list[tuple[float, int, int]] = []
     for i, p in enumerate(preds):
         bp = _box_tuple(p)
         for j, g in enumerate(gts):
             bg = _box_tuple(g)
-            score = ior(bp, bg)
-            if score >= ior_threshold:
+            score = _score(bp, bg)
+            if score >= threshold:
                 pairs.append((score, i, j))
     pairs.sort(key=lambda x: x[0], reverse=True)
     used_p: set[int] = set()
@@ -213,6 +296,15 @@ def match_pred_gt_ior(
         used_g.add(j)
         matches.append((i, j, score))
     return matches, used_p, used_g
+
+
+def match_pred_gt_ior(
+    preds: list[dict],
+    gts: list[dict],
+    ior_threshold: float,
+) -> tuple[list[tuple[int, int, float]], set[int], set[int]]:
+    """向后兼容：等价于 ``match_pred_gt(..., metric='ior')``。"""
+    return match_pred_gt(preds, gts, ior_threshold, metric="ior")
 
 
 def _visible_index(r: dict, results_visible: list[dict]) -> int | None:
@@ -276,21 +368,6 @@ def _draw_cn_text(
     draw.text((x, y), text, fill=color_rgb, font=font)
     out = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
     return out
-
-
-def _rect_iou(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> float:
-    ax1, ay1, ax2, ay2 = a
-    bx1, by1, bx2, by2 = b
-    ix1, iy1 = max(ax1, bx1), max(ay1, by1)
-    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
-    iw, ih = max(0, ix2 - ix1), max(0, iy2 - iy1)
-    inter = iw * ih
-    if inter <= 0:
-        return 0.0
-    a_area = max(0, ax2 - ax1) * max(0, ay2 - ay1)
-    b_area = max(0, bx2 - bx1) * max(0, by2 - by1)
-    denom = a_area + b_area - inter
-    return float(inter) / float(denom) if denom > 0 else 0.0
 
 
 def _pick_caption_anchor(
@@ -376,6 +453,7 @@ def draw_main_output_image(
     overlap_size: int,
     predict_debug: bool,
     *,
+    label_mode: str = "detailed",
     val_xml_mode: bool,
     results_visible: list[dict],
     gts: list[dict],
@@ -391,34 +469,135 @@ def draw_main_output_image(
     params = _auto_draw_params(w_img, h_img)
     draw_edge = PredictSize._uses_clip_predict_path(w_img, h_img, clip_size, overlap_size)
 
+    mode = str(label_mode or "detailed").lower().strip()
+    if mode not in ("minimal", "detailed"):
+        mode = "detailed"
+
+    def _draw_non_val_with_det_class(img_bgr: np.ndarray, rows: list[dict]) -> np.ndarray:
+        """
+        非验证模式的输出图：沿用 PredictSize._draw_results 的视觉规则，
+        但为了更易区分，这里将 other 设为黄色、过滤框仍为灰色。
+        但额外在标签中显示 detect 模型的 class_name，便于对比 detect vs cls。
+        """
+        img_draw_local = img_bgr.copy()
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        color_out = (0, 0, 255)
+        color_other = (0, 255, 255)  # other：黄色（BGR）
+        color_drop_debug = (180, 180, 180)
+
+        for r in rows:
+            x1, y1, x2, y2 = int(r["x1"]), int(r["y1"]), int(r["x2"]), int(r["y2"])
+            cls_name = r.get("cls_name", "unknown")
+            det_name = r.get("class_name", "")
+            cls_conf = float(r.get("cls_conf", 0.0) or 0.0)
+            det_conf = float(r.get("conf", 0.0) or 0.0)
+
+            if predict_debug:
+                color = color_drop_debug if r.get("filter") else color_out
+            else:
+                color = color_other if cls_name == "other" else color_out
+
+            cv2.rectangle(img_draw_local, (x1, y1), (x2, y2), color, int(params["rect_thk"]))
+
+            if cls_name == "other":
+                label = "" if mode == "minimal" else "other"
+            else:
+                if mode == "minimal":
+                    # 简略：类名-检测框置信度-分类置信度（各两位小数）
+                    label = f"{cls_name}-{det_conf:.2f}-{cls_conf:.2f}"
+                else:
+                    label = f"det={det_name} cls={cls_name} det:{det_conf:.2f} cls:{cls_conf:.2f}"
+            edge_label = None
+            if draw_edge and clip_size:
+                m = r.get("edge_min_dist")
+                if m is None:
+                    origin = PredictSize._parse_detect_clip_origin(r.get("detect_id", ""))
+                    if origin is not None:
+                        cx1, cy1 = origin
+                        m = PredictSize._min_dist_to_clip_edge(
+                            x1, y1, x2, y2, cx1, cy1, clip_size, w_img, h_img
+                        )
+                if m is not None:
+                    edge_label = f"edge-{int(round(float(m)))}"
+
+            # minimal 模式下 other 不显示任何文字；label 为空则直接跳过文字绘制
+            if not label:
+                continue
+
+            font_scale = float(params["font_scale"])
+            thickness = int(params["text_thk"])
+            line_specs = [(label, font_scale, thickness)]
+            if edge_label:
+                line_specs.append(
+                    (
+                        edge_label,
+                        float(params["edge_font_scale"]),
+                        int(params["edge_text_thk"]),
+                    )
+                )
+
+            gap = 2
+            rows_txt = []
+            baseline_y = y1 - 4
+            for line, fs, thk in reversed(line_specs):
+                (tw, th), bl = cv2.getTextSize(line, font, fs, thk)
+                rows_txt.append((line, fs, thk, tw, th, bl, baseline_y))
+                baseline_y -= th + bl + gap
+
+            max_tw = max(row[3] for row in rows_txt)
+            pad_x = 4
+            bg_bottom = y1
+            bg_top = baseline_y + gap
+            bg_left = x1
+            bg_right = x1 + max_tw + pad_x
+            if bg_top < 0:
+                dy = -bg_top
+                bg_top += dy
+                bg_bottom += dy
+                rows_txt = [
+                    (ln, fs, thk, tw, th, bl, by + dy)
+                    for (ln, fs, thk, tw, th, bl, by) in rows_txt
+                ]
+
+            cv2.rectangle(img_draw_local, (bg_left, bg_top), (bg_right, bg_bottom), color, -1)
+            for line, fs, thk, _tw, _th, _bl, by in rows_txt:
+                cv2.putText(
+                    img_draw_local,
+                    line,
+                    (x1 + 2, by),
+                    font,
+                    fs,
+                    (255, 255, 255),
+                    thk,
+                )
+
+        return img_draw_local
+
     if not val_xml_mode:
         draw_rows = (
             all_final_rows
             if predict_debug
             else [r for r in all_final_rows if not r.get("filter")]
         )
-        return PredictSize._draw_results(
-            image,
-            draw_rows,
-            draw_edge_px=draw_edge,
-            clip_size=clip_size,
-            debug_filter_palette=predict_debug,
-        )
+        return _draw_non_val_with_det_class(image, draw_rows)
 
-    color_gray = (180, 180, 180)
+    color_gray = (180, 180, 180)  # 灰色（BGR）
     color_ok = (0, 255, 0)  # 正确：绿色
     color_fp = (0, 0, 255)  # 误报：红色
     color_fn = (255, 0, 255)  # 漏报：粉色（BGR）
-    color_cls_err = (0, 255, 255)  # 类型错误：黄色（BGR）
+    color_other = (0, 255, 255)  # other：黄色（BGR）
+    color_cls_err = color_gray  # 类型错误：灰色（BGR）
     pred_to_gt = {i: j for i, j, _ in matches}
     matched_g = {j for _i, j, _s in matches}
 
     img_draw = image.copy()
     font = cv2.FONT_HERSHEY_SIMPLEX
 
-    # 题注统计（仅验证模式下有意义）
+    # 题注统计（仅验证模式下有意义）；other 不参与题注中的指标计数（与 dual 验证脚本一致）
     n_tp = n_fp = n_fn = n_cls_err = 0
     for i, r in enumerate(results_visible):
+        if is_metric_ignored_other(str(r.get("cls_name", "") or ""), merge):
+            continue
         if i not in matched_p:
             n_fp += 1
         else:
@@ -431,12 +610,16 @@ def draw_main_output_image(
                 n_cls_err += 1
                 n_fp += 1
     for j, _g in enumerate(gts):
+        if is_metric_ignored_other(str(_g.get("name", "") or ""), merge):
+            continue
         if j not in matched_g:
             n_fn += 1
 
     for r in all_final_rows:
-        if r.get("filter") or r.get("cls_name") == "other":
+        if r.get("filter"):
             color = color_gray
+        elif r.get("cls_name") == "other":
+            color = color_other
         else:
             vi = _visible_index(r, results_visible)
             if vi is None:
@@ -455,18 +638,29 @@ def draw_main_output_image(
         x1, y1, x2, y2 = r["x1"], r["y1"], r["x2"], r["y2"]
         x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
         cls_name = r.get("cls_name", "unknown")
-        cls_conf = r.get("cls_conf", 0.0)
-        det_conf = r.get("conf", 0.0)
+        det_name = r.get("class_name", "")
+        cls_conf = float(r.get("cls_conf", 0.0) or 0.0)
+        det_conf = float(r.get("conf", 0.0) or 0.0)
 
         cv2.rectangle(img_draw, (x1, y1), (x2, y2), color, int(params["rect_thk"]))
 
-        label = f"{cls_name} det:{det_conf:.2f} cls:{cls_conf:.2f}"
+        gt_note = None
+        if cls_name == "other":
+            label = "" if mode == "minimal" else "other"
+        else:
+            if mode == "minimal":
+                # 简略：类名-检测框置信度-分类置信度（各两位小数）
+                label = f"{cls_name}-{det_conf:.2f}-{cls_conf:.2f}"
+            else:
+                label = f"det={det_name} pred={cls_name} det:{det_conf:.2f} cls:{cls_conf:.2f}"
         vi = _visible_index(r, results_visible)
         if vi is not None and vi in matched_p:
             j = pred_to_gt[vi]
             gt_name = gts[j]["name"]
             if not is_class_match(cls_name, gt_name, merge):
-                label = f"pred={cls_name} gt={gt_name} det:{det_conf:.2f} cls:{cls_conf:.2f}"
+                if mode == "detailed":
+                    # 类型预测错误：预测与标注分两行展示，第二行备注正确类别
+                    gt_note = f"gt={gt_name}"
         edge_label = None
         if draw_edge and clip_size:
             m = r.get("edge_min_dist")
@@ -480,9 +674,15 @@ def draw_main_output_image(
             if m is not None:
                 edge_label = f"edge-{int(round(m))}"
 
+        # minimal 模式下 other 不显示任何文字；label 为空则直接跳过文字绘制
+        if not label:
+            continue
+
         font_scale = float(params["font_scale"])
         thickness = int(params["text_thk"])
         line_specs = [(label, font_scale, thickness)]
+        if gt_note:
+            line_specs.append((gt_note, font_scale, thickness))
         if edge_label:
             line_specs.append(
                 (
@@ -554,7 +754,7 @@ def draw_main_output_image(
         f"正确(绿): {n_tp}",
         f"误报(红): {n_fp}",
         f"漏报(粉): {n_fn}",
-        f"类型错误(黄): {n_cls_err}",
+        f"类型错误(灰): {n_cls_err}",
     ]
     caption = "；".join(legend_lines)
 
@@ -606,6 +806,8 @@ def save_prediction_image_and_xml(
     overlap_size: int,
     predict_debug: bool,
     *,
+    draw_boxes_text: bool = True,
+    label_mode: str = "detailed",
     val_xml_mode: bool = False,
     gts: list[dict] | None = None,
     matches: list[tuple[int, int, float]] | None = None,
@@ -618,35 +820,41 @@ def save_prediction_image_and_xml(
     os.makedirs(result_output_dir, exist_ok=True)
     h_img, w_img = image.shape[:2]
 
-    if val_xml_mode:
-        assert gts is not None and matches is not None and matched_p is not None
-        img_draw = draw_main_output_image(
-            image,
-            all_final_rows,
-            clip_size,
-            overlap_size,
-            predict_debug,
-            val_xml_mode=True,
-            results_visible=results_visible,
-            gts=gts,
-            matches=matches,
-            matched_p=matched_p,
-            merge=CLASS_MERGE_TO_GROUPS,
-        )
+    if draw_boxes_text:
+        if val_xml_mode:
+            assert gts is not None and matches is not None and matched_p is not None
+            img_draw = draw_main_output_image(
+                image,
+                all_final_rows,
+                clip_size,
+                overlap_size,
+                predict_debug,
+                label_mode=label_mode,
+                val_xml_mode=True,
+                results_visible=results_visible,
+                gts=gts,
+                matches=matches,
+                matched_p=matched_p,
+                merge=CLASS_MERGE_TO_GROUPS,
+            )
+        else:
+            img_draw = draw_main_output_image(
+                image,
+                all_final_rows,
+                clip_size,
+                overlap_size,
+                predict_debug,
+                label_mode=label_mode,
+                val_xml_mode=False,
+                results_visible=results_visible,
+                gts=[],
+                matches=[],
+                matched_p=set(),
+                merge=CLASS_MERGE_TO_GROUPS,
+            )
     else:
-        img_draw = draw_main_output_image(
-            image,
-            all_final_rows,
-            clip_size,
-            overlap_size,
-            predict_debug,
-            val_xml_mode=False,
-            results_visible=results_visible,
-            gts=[],
-            matches=[],
-            matched_p=set(),
-            merge=CLASS_MERGE_TO_GROUPS,
-        )
+        # 关闭可视化：直接写原图（不画框/不写文字）
+        img_draw = image
     save_path = os.path.join(result_output_dir, rel_path.name)
     cv2.imwrite(save_path, img_draw)
     logging.info(f"结果图片已保存: {save_path}")
@@ -654,7 +862,7 @@ def save_prediction_image_and_xml(
     depth = 3 if image.ndim >= 3 else 1
     xml_name = Path(rel_path.name).stem + ".xml"
     xml_path = os.path.join(result_output_dir, xml_name)
-    _write_pascal_voc_xml(
+    write_pascal_voc_xml(
         xml_path,
         folder_name=os.path.basename(os.path.normpath(result_output_dir)) or "",
         image_filename=rel_path.name,
@@ -667,6 +875,8 @@ def save_prediction_image_and_xml(
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    from script.insect_info import c1 as C1_KEYS, c2 as C2_MAP
+    from script.insect_info import INSECTS as INSECTS_CFG
 
     # 推理类别合并：比对时源 xml 的 name 可能是 key，也可能是 value 列表中的某个；
     # 不在此表中的类别按字符串精确匹配（归一后等于自身）。
@@ -752,36 +962,69 @@ if __name__ == "__main__":
     PIC_EXT = {".jpg", ".jpeg", ".png"}
 
     cls_list = None
-    detect_model_path = "/Users/shunyaoyin/Documents/code/models/kuangxuan_0209.pt"
-    # cls_model_path = "/Users/shunyaoyin/Downloads/best.pt"
-    cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260423-all-small/epoch5.pt"
-    cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260423-all-small/best.pt"
+    # 大虫
+    # detect_model_path = "/Users/shunyaoyin/Documents/code/models/kuangxuan_0209.pt"
+    detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/20260425-all/weights/best.pt"
+    # detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/20260426-large-01/best.pt"
+    detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/20260426-large-02/temp.pt"
+    cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260424-all-large/best.pt"
+    cls_model_path = None
+    # 稻飞虱
+    # detect_model_path = "/Users/shunyaoyin/Documents/code/models/daofeishi-detect-0405.pt"
+    # cls_model_path = "/Users/shunyaoyin/Documents/code/models/daofeishi-cls.pt"
+    # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-chatgpt'
+
+    # cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260423-all-small/epoch5.pt"
+    # cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260423-all-small/best.pt"
     input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-测试数据集"
     # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-honghe-temp"
     # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/虫情3模型测试数据/玉米螟（四川，广东）"
-    input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/比赛-北京"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/比赛-北京"
     input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/福建大赛"
-    input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/虫情4设备现场测试数据"
-    input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/线上收集0423"
-    output_dir = input_path + "_042301_validate"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/虫情4设备现场测试数据"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/线上收集0423"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/duankou_1"
+    output_dir = input_path + "_0426_validate_02"
     clip_size = 0
     overlap_size = 600
-    conf_thresh = 0.3
+    conf_thresh = 0.2
+    detect_nms_iou = 0.5
+    detect_max_det = 1000
+    # Ultralytics class-agnostic NMS：跨类别抑制重复框（不同 cls_id 也会互相抑制）
+    detect_nms_agnostic: bool | None = None
+    # conf_thresh = 0.55
     edge_reject_distance = 5
     edge_reject_conf_threshold = 1
-    edge_reject_cls_conf_threshold = 0.66
+    edge_reject_cls_conf_threshold = 0.3
     cls_top1_conf_threshold = 0.3
     predict_debug = False
+    # 可视化输出开关：False 时保存原图（不画框/不写文字），xml 仍照常输出
+    draw_boxes_text = True
+    # 可视化标签模式：
+    # - "minimal"：简略展示「最终分类名-检测置信度-分类置信度」（各两位小数，如 daming-0.50-0.69）
+    # - "detailed"(默认)：详细排错信息（det/cls/conf，验证模式下错误还会带 gt）
+    label_mode = "detailed"
     debug_clip = False
     cls_pad_square = True
+    # 新增：检测 padding 开关（整图检测时也补成正方形再检测）
+    # - False(默认)：保持历史行为：只有切片边缘窗才会 padding；整图检测不额外 padding
+    # - True：即使 clip_size >= 图像边长（整图检测），也先将整图白底补成正方形再检测，并将框映射回原图坐标
+    detect_pad_square_full_image = True
     size_config_path = None
 
-    # 验证：与标注同一框的 IoR 阈值（与 model_detect.ior 定义一致）
+    # 验证：pred 与 gt 同一框的几何匹配。默认 IoU；可选 "ior"（与 model_detect.ior 一致）
+    val_box_match_metric = "iou"  # "iou" | "ior"
+    val_iou_threshold = 0.5
     val_ior_threshold = 0.8
+    val_geom_threshold = (
+        val_iou_threshold if val_box_match_metric.lower().strip() == "iou" else val_ior_threshold
+    )
     # 最后“按类别统计”的排序开关：
     # - True(默认)：按每类正确率(=tp/(tp+cls_err))降序
     # - False：按标注类别名(归一后的类名)升序
     sort_stat_by_acc: bool = True
+    # 分类后去重：按 cls_name 做一次 IoU 去重；None 表示不去重（保持历史行为）
+    post_dedup_iou_threshold: float | None = None
 
     predictor = PredictSize(
         detect_model_path=detect_model_path,
@@ -849,9 +1092,15 @@ if __name__ == "__main__":
             debug=predict_debug,
             debug_clip=debug_clip,
             cls_pad_square=cls_pad_square,
+            detect_pad_square_full_image=detect_pad_square_full_image,
+            detect_nms_iou=detect_nms_iou,
+            detect_max_det=detect_max_det,
+            detect_nms_agnostic=detect_nms_agnostic,
             return_full_final=True,
         )
         results = [r for r in all_rows if not r.get("filter")]
+        if post_dedup_iou_threshold is not None:
+            results = _dedup_by_cls_iou(results, iou_threshold=float(post_dedup_iou_threshold))
 
         tp = fp = fn = cls_err = 0
         gts: list[dict] | None = None
@@ -867,45 +1116,82 @@ if __name__ == "__main__":
                 logging.warning("读取源 xml 失败 %s: %s", src_xml, e)
                 gts = None
             if gts is not None:
-                matches, matched_p, matched_g = match_pred_gt_ior(
-                    results, gts, val_ior_threshold
-                )
-                val_xml_mode = True
-                sum_geom_match += len(matches)
+                merge = CLASS_MERGE_TO_GROUPS
+                p_eval_idx = [
+                    i
+                    for i in range(len(results))
+                    if not is_metric_ignored_other(str(results[i].get("cls_name", "") or ""), merge)
+                ]
+                g_eval_idx = [
+                    j
+                    for j in range(len(gts))
+                    if not is_metric_ignored_other(str(gts[j].get("name", "") or ""), merge)
+                ]
+                results_ev = [results[i] for i in p_eval_idx]
+                gts_ev = [gts[j] for j in g_eval_idx]
 
-                pred_to_gt = {i: j for i, j, _ in matches}
-                # gt 计数（按归一后的组名）
-                for g in gts:
-                    _inc(normalize_class_name(g.get("name", ""), CLASS_MERGE_TO_GROUPS), "gt", 1)
-                # pred 计数（排除 filter=True；other 也计入 pred 方便看分布）
-                for r in results:
-                    _inc(normalize_class_name(r.get("cls_name", ""), CLASS_MERGE_TO_GROUPS), "pred", 1)
-
-                for i in range(len(results)):
-                    if i not in matched_p:
+                if not gts_ev:
+                    matches, matched_p, matched_g = [], set(), set()
+                    val_xml_mode = True
+                    pred_to_gt = {}
+                    for i in range(len(results)):
+                        if is_metric_ignored_other(str(results[i].get("cls_name", "") or ""), merge):
+                            continue
                         fp += 1
-                        _inc(normalize_class_name(results[i].get("cls_name", ""), CLASS_MERGE_TO_GROUPS), "fp", 1)
-                    else:
-                        j = pred_to_gt[i]
-                        pred_norm = normalize_class_name(results[i].get("cls_name", ""), CLASS_MERGE_TO_GROUPS)
-                        gt_norm = normalize_class_name(gts[j].get("name", ""), CLASS_MERGE_TO_GROUPS)
-                        if is_class_match(
-                            results[i].get("cls_name", ""),
-                            gts[j].get("name", ""),
-                            CLASS_MERGE_TO_GROUPS,
-                        ):
-                            tp += 1
-                            _inc(gt_norm, "tp", 1)
-                        else:
-                            cls_err += 1
-                            fp += 1
-                            _inc(gt_norm, "cls_err", 1)
-                            _inc(pred_norm, "fp", 1)
+                        pn = normalize_class_name(results[i].get("cls_name", ""), merge)
+                        _inc(pn, "pred", 1)
+                        _inc(pn, "fp", 1)
+                    fn = 0
+                else:
+                    matches_ev, matched_p_ev, matched_g_ev = match_pred_gt(
+                        results_ev,
+                        gts_ev,
+                        val_geom_threshold,
+                        metric=val_box_match_metric,
+                    )
+                    matches = [(p_eval_idx[i], g_eval_idx[j], sc) for i, j, sc in matches_ev]
+                    matched_p = {p_eval_idx[i] for i in matched_p_ev}
+                    matched_g = {g_eval_idx[j] for j in matched_g_ev}
+                    val_xml_mode = True
+                    sum_geom_match += len(matches)
 
-                fn = len(gts) - len(matched_g)
-                for j, g in enumerate(gts):
-                    if j not in matched_g:
-                        _inc(normalize_class_name(g.get("name", ""), CLASS_MERGE_TO_GROUPS), "fn", 1)
+                    pred_to_gt = {i: j for i, j, _ in matches}
+                    for j in g_eval_idx:
+                        _inc(normalize_class_name(gts[j].get("name", ""), merge), "gt", 1)
+                    for i in p_eval_idx:
+                        _inc(normalize_class_name(results[i].get("cls_name", ""), merge), "pred", 1)
+
+                    for i in range(len(results)):
+                        if is_metric_ignored_other(str(results[i].get("cls_name", "") or ""), merge):
+                            continue
+                        if i not in matched_p:
+                            fp += 1
+                            _inc(
+                                normalize_class_name(results[i].get("cls_name", ""), merge),
+                                "fp",
+                                1,
+                            )
+                        else:
+                            j = pred_to_gt[i]
+                            pred_norm = normalize_class_name(results[i].get("cls_name", ""), merge)
+                            gt_norm = normalize_class_name(gts[j].get("name", ""), merge)
+                            if is_class_match(
+                                results[i].get("cls_name", ""),
+                                gts[j].get("name", ""),
+                                merge,
+                            ):
+                                tp += 1
+                                _inc(gt_norm, "tp", 1)
+                            else:
+                                cls_err += 1
+                                fp += 1
+                                _inc(gt_norm, "cls_err", 1)
+                                _inc(pred_norm, "fp", 1)
+
+                    fn = len(gts_ev) - len(matched_g_ev)
+                    for j in g_eval_idx:
+                        if j not in matched_g:
+                            _inc(normalize_class_name(gts[j].get("name", ""), merge), "fn", 1)
 
         else:
             logging.info(f"无源标注 xml，跳过比对: {src_xml}")
@@ -919,6 +1205,8 @@ if __name__ == "__main__":
             clip_size,
             overlap_size,
             predict_debug,
+            draw_boxes_text=draw_boxes_text,
+            label_mode=label_mode,
             val_xml_mode=val_xml_mode,
             gts=gts,
             matches=matches,
@@ -951,11 +1239,14 @@ if __name__ == "__main__":
     report_rate = (float(sum_tp + sum_cls_err) / denom_gt) if denom_gt > 0 else 0.0
     acc_rate = (float(sum_tp) / denom_pred) if denom_pred > 0 else 0.0
     err_rate = (float(sum_fp) / denom_pred) if denom_pred > 0 else 0.0
+    miss_rate = (float(sum_fn) / denom_gt) if denom_gt > 0 else 0.0
+    total_dev_rate = miss_rate + err_rate
 
     print(
         f"汇总(有 xml 的图片参与 tp/fp/fn): tp={sum_tp} fp={sum_fp} fn={sum_fn} "
         f"cls_err={sum_cls_err} geom_pairs={sum_geom_match}  |  "
-        f"报出率={report_rate*100:.2f}% 正确率={acc_rate*100:.2f}% 错误率={err_rate*100:.2f}%"
+        f"报出率={report_rate*100:.2f}% 正确率={acc_rate*100:.2f}% 错误率={err_rate*100:.2f}%  "
+        f"漏检率={miss_rate*100:.2f}% 总偏差率={total_dev_rate*100:.2f}%"
     )
     if stat_by_cls:
         # 中文表格打印（等宽对齐，提升可读性）
@@ -968,8 +1259,10 @@ if __name__ == "__main__":
             "类型错",
             "正确率",
             "漏检FN",
+            "漏检率",
             "多检FP",
             "误报率",
+            "总偏差率",
         ]
         rows_with_sort: list[tuple[str, float, list[Any]]] = []
         total = {"gt": 0, "pred": 0, "tp": 0, "cls_err": 0, "fn": 0, "fp": 0}
@@ -991,6 +1284,8 @@ if __name__ == "__main__":
             report_rate = (float(tp_n) / denom_gt) if denom_gt > 0 else 0.0
             acc_rate = (float(tp_n) / denom_matched) if denom_matched > 0 else 0.0
             fp_rate = (float(fp_n) / denom_pred) if denom_pred > 0 else 0.0
+            miss_rate = (float(fn_n) / denom_gt) if denom_gt > 0 else 0.0
+            total_dev_rate = miss_rate + fp_rate
 
             row = [
                 str(cls_name),
@@ -1001,8 +1296,10 @@ if __name__ == "__main__":
                 ce_n,
                 f"{acc_rate*100:.2f}%",
                 fn_n,
+                f"{miss_rate*100:.2f}%",
                 fp_n,
                 f"{fp_rate*100:.2f}%",
+                f"{total_dev_rate*100:.2f}%",
             ]
             rows_with_sort.append((str(cls_name), float(acc_rate), row))
             total["gt"] += gt_n
@@ -1050,7 +1347,9 @@ if __name__ == "__main__":
                 str(total["cls_err"]),
                 "",
                 str(total["fn"]),
+                "",
                 str(total["fp"]),
+                "",
                 "",
             ]
         ]
@@ -1087,9 +1386,130 @@ if __name__ == "__main__":
                     str(total["cls_err"]),
                     "",
                     str(total["fn"]),
+                    "",
                     str(total["fp"]),
+                    "",
                     "",
                 ]
             )
+        )
+
+        # -------- 一类/二类/其他 汇总统计（基于 script/insect_info.py 的 c1/c2）--------
+        c1_set = set(str(x) for x in (C1_KEYS or []))
+        c2_set = set(str(x) for x in (C2_MAP or {}).keys())
+
+        def _bucket(cls_norm: str) -> str:
+            if cls_norm in c1_set:
+                return "一类害虫"
+            if cls_norm in c2_set:
+                return "二类害虫"
+            return "其他虫子"
+
+        group_total: dict[str, dict[str, int]] = {
+            "一类害虫": {"gt": 0, "pred": 0, "tp": 0, "cls_err": 0, "fn": 0, "fp": 0},
+            "二类害虫": {"gt": 0, "pred": 0, "tp": 0, "cls_err": 0, "fn": 0, "fp": 0},
+            "其他虫子": {"gt": 0, "pred": 0, "tp": 0, "cls_err": 0, "fn": 0, "fp": 0},
+        }
+        for cls_norm, s in stat_by_cls.items():
+            b = _bucket(str(cls_norm))
+            for k in ("gt", "pred", "tp", "cls_err", "fn", "fp"):
+                group_total[b][k] += int(s.get(k, 0))
+
+        def _fmt_group_line(name: str, s: dict[str, int]) -> str:
+            gt_n = int(s.get("gt", 0))
+            pred_n = int(s.get("pred", 0))
+            tp_n = int(s.get("tp", 0))
+            ce_n = int(s.get("cls_err", 0))
+            fn_n = int(s.get("fn", 0))
+            fp_n = int(s.get("fp", 0))
+            denom_gt = float(tp_n + ce_n + fn_n)  # 与整体汇总口径一致：只对有 xml 的框计
+            denom_pred = float(tp_n + fp_n)
+            miss_rate = (float(fn_n) / denom_gt) if denom_gt > 0 else 0.0
+            fp_rate = (float(fp_n) / denom_pred) if denom_pred > 0 else 0.0
+            total_dev = miss_rate + fp_rate
+            return (
+                f"{name}: gt={gt_n} pred={pred_n} tp={tp_n} fp={fp_n} fn={fn_n} cls_err={ce_n} | "
+                f"漏检率={miss_rate*100:.2f}% 误报率={fp_rate*100:.2f}% 总偏差率={total_dev*100:.2f}%"
+            )
+
+        print("分组统计（按 insect_info 的一类/二类/其他）：")
+        print(_fmt_group_line("一类害虫", group_total["一类害虫"]))
+        print(_fmt_group_line("二类害虫", group_total["二类害虫"]))
+        print(_fmt_group_line("其他虫子", group_total["其他虫子"]))
+
+        # -------- 湖南统计方法：按“识别数量 vs 鉴定数量”计算每种准确率，并加权汇总 --------
+        # 说明：
+        # - 识别数量：该类预测框数 pred
+        # - 鉴定数量：该类标注框数 gt（仅有 xml 才会计入）
+        # - 每种准确率(%) = (1 - abs(pred-gt)/gt) * 100
+        #   - gt==0 且 pred>=1 => 0%
+        #   - 计算结果为负 => 0%
+        #   - gt==0 且 pred==0 => 0%（当晚诱集未出现该虫，避免“空类=100%”拉高均值）
+        def _hn_acc(pred_n: int, gt_n: int) -> float:
+            pred_n = int(pred_n)
+            gt_n = int(gt_n)
+            if gt_n <= 0:
+                return 0.0 if pred_n >= 0 else 0.0
+            acc = (1.0 - abs(float(pred_n - gt_n)) / float(gt_n)) * 100.0
+            if acc < 0:
+                return 0.0
+            return float(acc)
+
+        # 湖南省二类：从 insect_info 的 level=2 中筛出“华中”或备注里显式包含“湖南”的条目
+        # 注：现有表格里有少量条目只在备注写“湖南”，未在 zones 标为华中，这里兼容两者。
+        hn_c2_set: set[str] = set()
+        for k, cfg in (INSECTS_CFG or {}).items():
+            try:
+                if int(getattr(cfg, "level", 0)) != 2:
+                    continue
+                zones = set(getattr(cfg, "zones", []) or [])
+                notes = str(getattr(cfg, "notes", "") or "")
+                if ("华中" in zones) or ("湖南" in notes):
+                    hn_c2_set.add(str(k))
+            except Exception:
+                continue
+
+        def _is_c1(k: str) -> bool:
+            return k in c1_set
+
+        def _is_hn_c2(k: str) -> bool:
+            return k in hn_c2_set
+
+        # 仅统计“当晚诱集”出现的虫（gt>0 或 pred>0），并输出每种准确率
+        hn_rows: list[tuple[str, str, int, int, float]] = []
+        for cls_norm, s in stat_by_cls.items():
+            cls_norm = str(cls_norm)
+            gt_n = int(s.get("gt", 0))
+            pred_n = int(s.get("pred", 0))
+            if gt_n <= 0 and pred_n <= 0:
+                continue
+            bucket = "一类害虫" if _is_c1(cls_norm) else ("湖南二类害虫" if _is_hn_c2(cls_norm) else "其他")
+            acc = _hn_acc(pred_n, gt_n)
+            hn_rows.append((bucket, cls_norm, gt_n, pred_n, acc))
+
+        # 打印：按一类/湖南二类优先，其它置后
+        bucket_rank = {"一类害虫": 0, "湖南二类害虫": 1, "其他": 9}
+        hn_rows.sort(key=lambda x: (bucket_rank.get(x[0], 9), x[0], x[1]))
+
+        print("湖南统计方法（每种虫体的自动识别与计数准确率）：")
+        print("分组 | 类别(归一) | 鉴定数量(gt) | 识别数量(pred) | 每种准确率")
+        for b, cls_norm, gt_n, pred_n, acc in hn_rows:
+            print(f"{b} | {cls_norm} | {gt_n} | {pred_n} | {acc:.2f}%")
+
+        def _avg_acc(rows: list[tuple[str, str, int, int, float]], bucket: str) -> float:
+            vals = [r[4] for r in rows if r[0] == bucket]
+            if not vals:
+                return 0.0
+            return float(sum(vals) / float(len(vals)))
+
+        avg_c1 = _avg_acc(hn_rows, "一类害虫")
+        avg_hn_c2 = _avg_acc(hn_rows, "湖南二类害虫")
+        day_acc = 0.6 * avg_c1 + 0.4 * avg_hn_c2
+        day_score_30 = day_acc * 0.30  # 30 分制
+
+        print(
+            "湖南统计方法汇总："
+            f"一类均值={avg_c1:.2f}%  湖南二类均值={avg_hn_c2:.2f}%  "
+            f"加权当天准确率={day_acc:.2f}%  折算(30分制)={day_score_30:.2f}/30"
         )
     print("处理完成")

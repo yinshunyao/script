@@ -12,10 +12,13 @@ import os
 import sys
 import cv2
 from pathlib import Path
+from typing import Any, Optional
 
 # 确保项目根目录在 path 中，便于作为模块导入
 _FILE = Path(__file__).resolve()
 _ROOT = _FILE.parents[1]
+# 与本模块同目录的算法阈值配置（script/insect_alg.json）
+DEFAULT_INSECT_ALG_JSON = _FILE.parent / "insect_alg.json"
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
@@ -37,7 +40,9 @@ class PredictSize:
                  conf_thresh=0.3, conf_merge=0.1,
                  iou_threshold=0.3, ior_threshold=0.4,
                  device=None, augment=False, cls_pad_square=False,
-                 cls_gray_binarize=False):
+                 cls_gray_binarize=False,
+                 insect_alg_path=None,
+                 insect_alg_profile=None):
         """
         初始化检测和分类预测器（一次实例化，重复使用）
 
@@ -46,16 +51,35 @@ class PredictSize:
         :param cls_list:          需要分类的类别列表, 例如 ["hefeishi", "baibeifeishi", "huifeishi"]
         :param cls_model_path:    分类模型路径, 为 None 时跳过分类步骤，仅做检测+尺寸过滤
         :param offset_rate:       尺寸容错系数, 一般 0~2, 默认 1.2
-        :param conf_thresh:       检测输出置信度阈值
+        :param conf_thresh:       检测输出置信度阈值（无 insect_alg 命中 detect_conf 时使用）
         :param conf_merge:        merge 前置信度
         :param iou_threshold:     IOU 阈值
         :param ior_threshold:     IOR 阈值
         :param device:            设备类型 ('cuda', 'mps', 'cpu')，None 则自动检测
         :param cls_pad_square:    分类前是否将非正方形裁剪白边补成正方形（与训练白边正方形一致）
         :param cls_gray_binarize: 分类前是否先做灰度+CLAHE+Otsu 二值化再扩成三通道 BGR（默认关）
+        :param insect_alg_path:   None 时使用与本文件同目录的 insect_alg.json（存在则加载）；
+                传入非 None 路径则使用该路径（文件不存在时告警并忽略）
+        :param insect_alg_profile: 可选，指定用于解析 detect_conf 的配置键（如 daofeishi）；None 时按 cls_list 与 insect 键自动解析
         """
         self.cls_list = cls_list
         self.offset_rate = offset_rate
+        self._insect_alg: Optional[dict[str, Any]] = None
+        p = Path(insect_alg_path) if insect_alg_path is not None else DEFAULT_INSECT_ALG_JSON
+        if p.is_file():
+            with open(p, "r", encoding="utf-8") as f:
+                self._insect_alg = json.load(f)
+        elif insect_alg_path is not None:
+            logging.warning(f"insect_alg 配置文件不存在，忽略: {p}")
+
+        effective_conf_thresh = self._resolve_detect_conf_thresh(
+            conf_thresh, insect_alg_profile
+        )
+        if self._insect_alg and effective_conf_thresh != conf_thresh:
+            logging.info(
+                f"检测置信度阈值: insect_alg 使用 detect_conf={effective_conf_thresh:.4f} "
+                f"(全局 conf_thresh={conf_thresh})"
+            )
 
         # ---------- 计算尺寸过滤参数（只在 __init__ 中算一次） ----------
         if size_config_path is None:
@@ -74,7 +98,7 @@ class PredictSize:
         # ---------- 加载检测模型 ----------
         self.detector = ModelDetector(
             model_path=detect_model_path,
-            conf_thresh=conf_thresh,
+            conf_thresh=effective_conf_thresh,
             conf_merge=conf_merge,
             iou_threshold=iou_threshold,
             ior_threshold=ior_threshold,
@@ -91,6 +115,46 @@ class PredictSize:
         else:
             self.classifier = None
             logging.info("未传递分类模型路径，将跳过分类步骤，仅做检测+尺寸过滤")
+
+    def _resolve_detect_conf_thresh(
+        self, conf_thresh: float, insect_alg_profile: Optional[str]
+    ) -> float:
+        """
+        从 insect_alg.json 解析检测置信度：优先 profile 键，再 cls_list 顺序中带 detect_conf 的键，最后 insect。
+        均无 detect_conf 时返回全局 conf_thresh。
+        """
+        alg = self._insect_alg
+        if not alg:
+            return float(conf_thresh)
+        keys_try: list[str] = []
+        if insect_alg_profile and insect_alg_profile in alg:
+            keys_try.append(insect_alg_profile)
+        for c in self.cls_list or []:
+            if isinstance(c, str) and c in alg and c not in keys_try:
+                keys_try.append(c)
+        if "insect" in alg and "insect" not in keys_try:
+            keys_try.append("insect")
+        for k in keys_try:
+            entry = alg.get(k) or {}
+            if "detect_conf" in entry and entry["detect_conf"] is not None:
+                return float(entry["detect_conf"])
+        return float(conf_thresh)
+
+    def _cls_top1_threshold_for_predicted_name(
+        self, predicted_cls_name: str, cls_top1_conf_threshold: Optional[float]
+    ) -> Optional[float]:
+        """
+        分类 top1 门限：若 insect_alg 中对该预测类名配置了 cls_conf，则用该值；
+        否则用 predict 传入的 cls_top1_conf_threshold（可为 None 表示不门控）。
+        """
+        alg = self._insect_alg
+        if alg and predicted_cls_name in alg:
+            entry = alg[predicted_cls_name] or {}
+            if "cls_conf" in entry and entry["cls_conf"] is not None:
+                return float(entry["cls_conf"])
+        if cls_top1_conf_threshold is not None:
+            return float(cls_top1_conf_threshold)
+        return None
 
     # ------------------------------------------------------------------ #
     #  尺寸配置解析
@@ -313,6 +377,10 @@ class PredictSize:
                 cls_pad_square=None,
                 cls_gray_binarize=None,
                 detect_pad_square=True,
+                detect_pad_square_full_image=False,
+                detect_nms_iou=None,
+                detect_max_det=None,
+                detect_nms_agnostic: bool | None = None,
                 return_full_final=False):
         """
         完成检测和分类推理
@@ -332,9 +400,14 @@ class PredictSize:
         :param edge_reject_cls_conf_threshold: 与距离联合过滤的分类置信度阈值（不含），None 时默认 0.0（等价不因分类置信度触发）
         :param cls_top1_conf_threshold: 分类 top1 置信度门限；不为 None 时，仅当 top1 置信度 **大于** 该值才保留模型类别名，
                 否则将 cls_name 置为 other（cls_conf 仍为 top1 原始值便于排查）。None 表示不做该判定。
+                若构造时加载了 insect_alg.json 且对当前预测类名配置了 cls_conf，则对该类优先使用 JSON 门限。
         :param cls_pad_square: 本次推理是否对分类裁剪做白边正方形 padding；None 时用构造 PredictSize 时的默认值
         :param cls_gray_binarize: 本次是否对分类裁剪做灰度+CLAHE+Otsu；None 时用构造时的默认值
         :param detect_pad_square: 检测切片不足 clip_size 时是否补成正方形（原图居中、黑边）；默认 True
+        :param detect_pad_square_full_image: 整图检测（不切片）时是否也先补成正方形再检测；默认 False（保持历史行为）
+        :param detect_nms_iou: Ultralytics 内置 NMS 的 IoU 阈值（区别于 merge_iou 的 iou_threshold）；None 表示用 detector 默认值
+        :param detect_max_det: Ultralytics 内置 NMS 的 max_det（每张图最多保留框数）；None 表示用 detector 默认值
+        :param detect_nms_agnostic: Ultralytics class-agnostic NMS（跨类别抑制）；None 表示用 detector 默认值
         :param return_full_final: 为 True 时返回含 filter 标记在内的全部 final_results；默认 False 仅返回未过滤框
         :param output:       保存目录路径, 为 None 则不保存绘制结果
         :param image_name:   保存的文件名 (如 "test.jpg"), 为 None 时使用默认名 "result.jpg"
@@ -349,6 +422,10 @@ class PredictSize:
             clip_size=clip_size,
             overlap_size=overlap_size,
             padding=bool(detect_pad_square),
+            pad_full_image_to_square=bool(detect_pad_square_full_image),
+            nms_iou=detect_nms_iou,
+            max_det=detect_max_det,
+            nms_agnostic=detect_nms_agnostic,
             debug=debug, debug_clip=debug_clip,
             # 边缘过滤依赖分类置信度，因此在本层（分类后）统一处理；
             # detector 层传 0 仅用于保留 edge_min_dist 字段，不在 detector 层做丢弃。
@@ -394,9 +471,11 @@ class PredictSize:
                         det["cls_name"] = cls_result["class_name"]
                         det["cls_conf"] = cls_result["conf"]
                         det["cls_top3"] = cls_result.get("top3", [])
-                        if cls_top1_conf_threshold is not None:
-                            if det["cls_conf"] <= float(cls_top1_conf_threshold):
-                                det["cls_name"] = "other"
+                        cls_thr = self._cls_top1_threshold_for_predicted_name(
+                            det["cls_name"], cls_top1_conf_threshold
+                        )
+                        if cls_thr is not None and det["cls_conf"] <= cls_thr:
+                            det["cls_name"] = "other"
                     else:
                         det["cls_name"] = "other"
                         det["cls_conf"] = 0.0
@@ -491,6 +570,62 @@ class PredictSize:
 
         logging.info("模型资源已释放")
 
+def write_pascal_voc_xml(
+    xml_path: str,
+    folder_name: str,
+    image_filename: str,
+    width: int,
+    height: int,
+    depth: int,
+    results,
+):
+    import xml.etree.ElementTree as ET
+    from xml.dom import minidom
+    """
+    将检测结果写成 Pascal VOC 格式的单个 xml 文件。
+    results: predict 返回的列表，元素含 x1,y1,x2,y2, cls_name, conf 等。
+    """
+    annotation = ET.Element("annotation")
+    ET.SubElement(annotation, "folder").text = folder_name or ""
+    ET.SubElement(annotation, "filename").text = image_filename
+    src = ET.SubElement(annotation, "source")
+    ET.SubElement(src, "database").text = "Unknown"
+    size_el = ET.SubElement(annotation, "size")
+    ET.SubElement(size_el, "width").text = str(int(width))
+    ET.SubElement(size_el, "height").text = str(int(height))
+    ET.SubElement(size_el, "depth").text = str(int(depth))
+    ET.SubElement(annotation, "segmented").text = "0"
+
+    for r in results:
+        x1 = int(round(max(0, min(r["x1"], width - 1))))
+        y1 = int(round(max(0, min(r["y1"], height - 1))))
+        x2 = int(round(max(0, min(r["x2"], width))))
+        y2 = int(round(max(0, min(r["y2"], height))))
+        if x2 <= x1:
+            x2 = min(width, x1 + 1)
+        if y2 <= y1:
+            y2 = min(height, y1 + 1)
+
+        obj = ET.SubElement(annotation, "object")
+        name = r.get("cls_name", r.get("class_name", "unknown"))
+        ET.SubElement(obj, "name").text = str(name)
+        ET.SubElement(obj, "pose").text = "Unspecified"
+        ET.SubElement(obj, "truncated").text = "0"
+        ET.SubElement(obj, "difficult").text = "0"
+        bnd = ET.SubElement(obj, "bndbox")
+        ET.SubElement(bnd, "xmin").text = str(x1)
+        ET.SubElement(bnd, "ymin").text = str(y1)
+        ET.SubElement(bnd, "xmax").text = str(x2)
+        ET.SubElement(bnd, "ymax").text = str(y2)
+
+    rough = ET.tostring(annotation, encoding="utf-8")
+    parsed = minidom.parseString(rough)
+    pretty = parsed.toprettyxml(indent="\t", encoding="utf-8")
+    os.makedirs(os.path.dirname(xml_path) or ".", exist_ok=True)
+    with open(xml_path, "wb") as f:
+        f.write(pretty)
+
+
 current_dir = Path(__file__).parent
 # ====================================================================== #
 #  使用示例 — 支持给定文件夹，遍历目录及子目录下的图片
@@ -522,9 +657,9 @@ if __name__ == "__main__":
     # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-边缘0的问题/00_20260414145928_103_95.png'
     # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-边缘0的问题'
     # input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-边缘0的问题/2039010078717022208_006_760_760-切片漏检.jpg'
-    input_path = '/Users/shunyaoyin/Downloads/2044389074738368512.jpg'
+    input_path = '/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/线上收集0423/daofeishi-chatgpt'
     # 输出目录：保存绘制结果（保持与输入相同的子目录结构和文件名）
-    output_dir = input_path + "_0405"
+    output_dir = input_path + "_0425"
     clip_size = 640
     overlap_size = 120
     # 正常参数

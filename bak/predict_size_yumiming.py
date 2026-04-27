@@ -7,65 +7,9 @@
 # @Software: PyCharm
 import logging
 import os
-import xml.etree.ElementTree as ET
-from xml.dom import minidom
 
 import cv2
-from predict_size_daofeishi import PredictSize, current_dir, Path
-
-
-def _write_pascal_voc_xml(
-    xml_path: str,
-    folder_name: str,
-    image_filename: str,
-    width: int,
-    height: int,
-    depth: int,
-    results,
-):
-    """
-    将检测结果写成 Pascal VOC 格式的单个 xml 文件。
-    results: predict 返回的列表，元素含 x1,y1,x2,y2, cls_name, conf 等。
-    """
-    annotation = ET.Element("annotation")
-    ET.SubElement(annotation, "folder").text = folder_name or ""
-    ET.SubElement(annotation, "filename").text = image_filename
-    src = ET.SubElement(annotation, "source")
-    ET.SubElement(src, "database").text = "Unknown"
-    size_el = ET.SubElement(annotation, "size")
-    ET.SubElement(size_el, "width").text = str(int(width))
-    ET.SubElement(size_el, "height").text = str(int(height))
-    ET.SubElement(size_el, "depth").text = str(int(depth))
-    ET.SubElement(annotation, "segmented").text = "0"
-
-    for r in results:
-        x1 = int(round(max(0, min(r["x1"], width - 1))))
-        y1 = int(round(max(0, min(r["y1"], height - 1))))
-        x2 = int(round(max(0, min(r["x2"], width))))
-        y2 = int(round(max(0, min(r["y2"], height))))
-        if x2 <= x1:
-            x2 = min(width, x1 + 1)
-        if y2 <= y1:
-            y2 = min(height, y1 + 1)
-
-        obj = ET.SubElement(annotation, "object")
-        name = r.get("cls_name", r.get("class_name", "unknown"))
-        ET.SubElement(obj, "name").text = str(name)
-        ET.SubElement(obj, "pose").text = "Unspecified"
-        ET.SubElement(obj, "truncated").text = "0"
-        ET.SubElement(obj, "difficult").text = "0"
-        bnd = ET.SubElement(obj, "bndbox")
-        ET.SubElement(bnd, "xmin").text = str(x1)
-        ET.SubElement(bnd, "ymin").text = str(y1)
-        ET.SubElement(bnd, "xmax").text = str(x2)
-        ET.SubElement(bnd, "ymax").text = str(y2)
-
-    rough = ET.tostring(annotation, encoding="utf-8")
-    parsed = minidom.parseString(rough)
-    pretty = parsed.toprettyxml(indent="\t", encoding="utf-8")
-    os.makedirs(os.path.dirname(xml_path) or ".", exist_ok=True)
-    with open(xml_path, "wb") as f:
-        f.write(pretty)
+from predict_size import PredictSize, current_dir, Path, write_pascal_voc_xml
 
 # ====================================================================== #
 #  使用示例 — 支持给定文件夹，遍历目录及子目录下的图片
@@ -186,7 +130,7 @@ if __name__ == "__main__":
             depth = 3 if img.ndim >= 3 else 1
             xml_name = Path(rel_path.name).stem + ".xml"
             xml_path = os.path.join(result_output_dir, xml_name)
-            _write_pascal_voc_xml(
+            write_pascal_voc_xml(
                 xml_path,
                 folder_name=os.path.basename(os.path.normpath(result_output_dir)) or "",
                 image_filename=rel_path.name,

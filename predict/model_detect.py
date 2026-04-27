@@ -99,7 +99,20 @@ def enhance_contrast(img):
     return cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2BGR)
 
 class ModelDetector:
-    def __init__(self, model_path, conf_thresh=0.5, conf_merge=0.3, iou_threshold=0.3, ior_threshold=0.5, device=None, augment=False):
+    def __init__(
+        self,
+        model_path,
+        conf_thresh=0.5,
+        conf_merge=0.3,
+        iou_threshold=0.3,
+        ior_threshold=0.5,
+        device=None,
+        augment=False,
+        *,
+        nms_iou: float | None = None,
+        max_det: int | None = None,
+        nms_agnostic: bool | None = None,
+    ):
         """
 
         :param model_path:
@@ -128,6 +141,11 @@ class ModelDetector:
         self.conf_merge = conf_merge
         self.iou_threshold = iou_threshold
         self.ior_threshold = ior_threshold
+        # Ultralytics 内置 NMS 参数（与本文件里的 merge_iou iou_threshold 不同）
+        self.nms_iou = nms_iou
+        self.max_det = max_det
+        # Ultralytics class-agnostic NMS（跨类别抑制）
+        self.nms_agnostic = nms_agnostic
 
     def _auto_detect_device(self):
         """
@@ -143,12 +161,36 @@ class ModelDetector:
         else:
             return 'cpu'
 
-    def _predict(self, image, conf=0.01, detect_id: str='0-0', device=None, imgsz=0, overlap=0):
+    def _predict(
+        self,
+        image,
+        conf=0.01,
+        detect_id: str = "0-0",
+        device=None,
+        imgsz=0,
+        overlap=0,
+        *,
+        nms_iou: float | None = None,
+        max_det: int | None = None,
+        nms_agnostic: bool | None = None,
+    ):
         kwargs = {}
         if imgsz:
             kwargs['imgsz'] = imgsz
         if overlap:
             kwargs['overlap'] = overlap
+        if nms_iou is None:
+            nms_iou = self.nms_iou
+        if max_det is None:
+            max_det = self.max_det
+        if nms_agnostic is None:
+            nms_agnostic = self.nms_agnostic
+        if nms_iou is not None:
+            kwargs["iou"] = float(nms_iou)
+        if max_det is not None:
+            kwargs["max_det"] = int(max_det)
+        if nms_agnostic is not None:
+            kwargs["agnostic_nms"] = bool(nms_agnostic)
         pred = self.model.predict(image, verbose=False, device=device or self.device, augment=self.augment, **kwargs)
         results = []
         if not pred or not pred[0].boxes:
@@ -470,7 +512,10 @@ class ModelDetector:
         return out
 
     def predict(self, image, clip_size=2500, overlap_size=800,
-                padding=True, debug=False, debug_clip=False,
+                padding=True, pad_full_image_to_square=False,
+                nms_iou: float | None = None, max_det: int | None = None,
+                nms_agnostic: bool | None = None,
+                debug=False, debug_clip=False,
                 min_size=5, max_size=None, edge_reject_distance=0,
                 edge_reject_conf_threshold=None,
                 device=None,
@@ -481,8 +526,10 @@ class ModelDetector:
         :param image:
         :param clip_size: 按照正方形切片，如果大于或者等于全图，不切
         :param overlap_size: 多个切片重叠区域像素大小
-        :param padding: 默认 True。边缘切片任一边小于 clip_size 则补成与分片边长一致的
+        :param padding: 默认 True。切片模式下边缘切片任一边小于 clip_size 则补成与分片边长一致的
             clip_size×clip_size 正方形；原图居中、空缺白底；再将检测框坐标移回切片局部坐标。
+        :param pad_full_image_to_square: 默认 False。整图检测模式下（不切片）也先将整图白底补成正方形再检测，
+            用于对齐训练/推理对 imgsz 的假设；检测框坐标会再映射回原图坐标系。
         :param edge_reject_distance: merge 之后切片边缘距离阈值（像素），<=0 表示不按距离滤除
         :param edge_reject_conf_threshold: merge 之后与距离联合过滤的置信度上限（不含）；
             None 时使用 self.conf_thresh。若需「仅按距离、忽略置信度」可传入大于 1 的值。
@@ -496,9 +543,30 @@ class ModelDetector:
         if not clip_size or not overlap_size or (clip_size >= w and clip_size >= h or clip_size <= overlap_size <= 1):
             # kwargs["imgsz"] = clip_size
             # kwargs["overlap"] = overlap_size/clip_size
+            pad_off_x = pad_off_y = 0
+            img_infer = image
+            if pad_full_image_to_square and w != h:
+                side = int(max(w, h))
+                img_infer, pad_off_x, pad_off_y, _pw, _ph = _pad_tile_to_clip_square(
+                    image, w, h, side
+                )
 
-            results = self._predict(image, self.conf_thresh, device=device, **kwargs)
+            results = self._predict(
+                img_infer,
+                self.conf_thresh,
+                device=device,
+                nms_iou=nms_iou,
+                max_det=max_det,
+                nms_agnostic=nms_agnostic,
+                **kwargs,
+            )
             results = self._convert_result(results)
+            if pad_off_x or pad_off_y:
+                for r in results:
+                    r["x1"] = int(r["x1"]) - int(pad_off_x)
+                    r["y1"] = int(r["y1"]) - int(pad_off_y)
+                    r["x2"] = int(r["x2"]) - int(pad_off_x)
+                    r["y2"] = int(r["y2"]) - int(pad_off_y)
             if debug:
                 self.draw(image, results)
 
@@ -517,7 +585,15 @@ class ModelDetector:
                     clip, actual_clip_w, actual_clip_h, clip_size
                 )
 
-            results = self._predict(clip, conf=self.conf_merge, detect_id=f"{clip_x1}-{clip_y1}", device=device)
+            results = self._predict(
+                clip,
+                conf=self.conf_merge,
+                detect_id=f"{clip_x1}-{clip_y1}",
+                device=device,
+                nms_iou=nms_iou,
+                max_det=max_det,
+                nms_agnostic=nms_agnostic,
+            )
 
             if pad_off_x or pad_off_y:
                 for r in results:

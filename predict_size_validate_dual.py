@@ -186,8 +186,8 @@ def _print_stat_by_cls(
         "总偏差率",
     ]
 
-    # sort keys: first by report_rate (desc), then by acc_rate (desc)
-    rows_with_sort: list[tuple[str, float, float, list[str]]] = []
+    # sort keys: total_dev_rate asc -> report_rate desc -> acc_rate desc
+    rows_with_sort: list[tuple[str, float, float, float, list[str]]] = []
     total = {"gt": 0, "pred": 0, "tp": 0, "cls_err": 0, "fn": 0, "fp": 0}
     for cls_name in stat_by_cls.keys():
         s = stat_by_cls[cls_name]
@@ -204,7 +204,8 @@ def _print_stat_by_cls(
         report_rate = (float(tp_n) / denom_gt) if denom_gt > 0 else 0.0
         acc_rate = (float(tp_n) / denom_matched) if denom_matched > 0 else 0.0
         fp_rate = (float(fp_n) / denom_pred) if denom_pred > 0 else 0.0
-        miss_rate = (float(fn_n) / denom_gt) if denom_gt > 0 else 0.0
+        # 按类别口径：类型错会导致该 GT 类别未被正确识别，计入漏检
+        miss_rate = (float(fn_n + ce_n) / denom_gt) if denom_gt > 0 else 0.0
         total_dev_rate = miss_rate + fp_rate
 
         row = [
@@ -221,7 +222,7 @@ def _print_stat_by_cls(
             f"{fp_rate*100:.2f}%",
             f"{total_dev_rate*100:.2f}%",
         ]
-        rows_with_sort.append((str(cls_name), float(report_rate), float(acc_rate), row))
+        rows_with_sort.append((str(cls_name), float(total_dev_rate), float(report_rate), float(acc_rate), row))
         total["gt"] += gt_n
         total["pred"] += pred_n
         total["tp"] += tp_n
@@ -232,15 +233,16 @@ def _print_stat_by_cls(
     if sort_by_acc:
         rows_with_sort.sort(
             key=lambda x: (
-                -x[1],  # report_rate desc
-                -x[2],  # acc_rate desc
+                x[1],  # total_dev_rate asc
+                -x[2],  # report_rate desc
+                -x[3],  # acc_rate desc
                 -int(stat_by_cls.get(x[0], {}).get("gt", 0)),  # tie-breaker: support desc
                 x[0],
             )
         )
     else:
         rows_with_sort.sort(key=lambda x: x[0])
-    rows = [r for _cls, _rep, _acc, r in rows_with_sort]
+    rows = [r for _cls, _dev, _rep, _acc, r in rows_with_sort]
 
     all_lines = [headers] + rows + [
         [
@@ -272,7 +274,7 @@ def _print_stat_by_cls(
                 out.append(_rjust_disp(it, widths[i]))
         return " | ".join(out)
 
-    sort_hint = "报出率降序，其次正确率降序" if sort_by_acc else "标注类别名升序"
+    sort_hint = "总偏差率升序，其次报出率降序，再次正确率降序" if sort_by_acc else "标注类别名升序"
     print(f"{title}（按{sort_hint}）:")
     print(_fmt_line(headers))
     print("-+-".join("-" * w for w in widths))
@@ -623,7 +625,7 @@ def _export_stat_by_cls_csv(
         "total_dev_rate",
     ]
 
-    rows_with_sort: list[tuple[str, float, float, dict]] = []
+    rows_with_sort: list[tuple[str, float, float, float, dict]] = []
     for cls_name in stat_by_cls.keys():
         s = stat_by_cls[cls_name]
         gt_n = int(s.get("gt", 0))
@@ -639,7 +641,8 @@ def _export_stat_by_cls_csv(
         report_rate = (float(tp_n) / denom_gt) if denom_gt > 0 else 0.0
         acc_rate = (float(tp_n) / denom_matched) if denom_matched > 0 else 0.0
         fp_rate = (float(fp_n) / denom_pred) if denom_pred > 0 else 0.0
-        miss_rate = (float(fn_n) / denom_gt) if denom_gt > 0 else 0.0
+        # 按类别口径：类型错会导致该 GT 类别未被正确识别，计入漏检
+        miss_rate = (float(fn_n + ce_n) / denom_gt) if denom_gt > 0 else 0.0
         total_dev_rate = miss_rate + fp_rate
 
         row = {
@@ -656,13 +659,14 @@ def _export_stat_by_cls_csv(
             "fp_rate": round(fp_rate, 6),
             "total_dev_rate": round(total_dev_rate, 6),
         }
-        rows_with_sort.append((str(cls_name), float(report_rate), float(acc_rate), row))
+        rows_with_sort.append((str(cls_name), float(total_dev_rate), float(report_rate), float(acc_rate), row))
 
     if sort_by_acc:
         rows_with_sort.sort(
             key=lambda x: (
-                -x[1],  # report_rate desc
-                -x[2],  # acc_rate desc
+                x[1],  # total_dev_rate asc
+                -x[2],  # report_rate desc
+                -x[3],  # acc_rate desc
                 -int(stat_by_cls.get(x[0], {}).get("gt", 0)),  # support desc
                 x[0],
             )
@@ -674,7 +678,7 @@ def _export_stat_by_cls_csv(
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=headers)
         w.writeheader()
-        for _cls, _rep, _acc, row in rows_with_sort:
+        for _cls, _dev, _rep, _acc, row in rows_with_sort:
             w.writerow(row)
 
 
@@ -731,7 +735,8 @@ def _export_group_summary_csv(
         fp_n = int(s.get("fp", 0))
         denom_gt = float(tp_n + ce_n + fn_n)
         denom_pred = float(tp_n + fp_n)
-        miss_rate = (float(fn_n) / denom_gt) if denom_gt > 0 else 0.0
+        # 分组口径与按类别保持一致：类型错也计入漏检
+        miss_rate = (float(fn_n + ce_n) / denom_gt) if denom_gt > 0 else 0.0
         fp_rate = (float(fp_n) / denom_pred) if denom_pred > 0 else 0.0
         total_dev = miss_rate + fp_rate
         rows.append(
@@ -855,7 +860,8 @@ def _export_overall_summary_csv(out_root: str, branch: str, s: dict[str, int]) -
     report_rate = (float(tp + ce) / denom_gt) if denom_gt > 0 else 0.0
     acc_rate = (float(tp) / denom_pred) if denom_pred > 0 else 0.0
     err_rate = (float(fp) / denom_pred) if denom_pred > 0 else 0.0
-    miss_rate = (float(fn) / denom_gt) if denom_gt > 0 else 0.0
+    # 汇总口径与按类别保持一致：类型错也计入漏检
+    miss_rate = (float(fn + ce) / denom_gt) if denom_gt > 0 else 0.0
     total_dev = miss_rate + err_rate
     out_path = os.path.join(branch_dir, "overall_summary.csv")
     with open(out_path, "w", newline="", encoding="utf-8") as f:
@@ -944,6 +950,7 @@ if __name__ == "__main__":
         # 年虫组（举例）
         "dongfangnianchong": ["dongfangnianchong", "dongfangzhanchong"],
         "laoshinianchong": ["laoshizhanchong", "laoshinianchong"],
+        "daofeishi": ["baibeifeishi", "hufeishi", "daofeishi"],
     }
     # 小虫（稻飞虱）基本不需要合并，保持 None 即可；若 xml 里有别名可在此补
     CLASS_MERGE_TO_GROUPS_SMALL: dict[str, list[str]] | None = None
@@ -952,7 +959,8 @@ if __name__ == "__main__":
     # 名单中的分类：不写预测 xml、不画框、不做验证匹配、不参与逐图打印；按类汇总统计也不计入这些预测。
     # 可同时写「预测 cls_name 原文」或「类别合并后的组名」（与上面 CLASS_MERGE_* 一致）。
     # OUTPUT_SUPPRESS_CLASS_NAMES: tuple[str, ...] = ("xiaocaie", "xiaoshie")
-    OUTPUT_SUPPRESS_CLASS_NAMES: tuple[str, ...] = ("other_insect", "yinchichong", "other", "other_e")
+    # 默认不暂隐，避免把所有框都过滤掉
+    OUTPUT_SUPPRESS_CLASS_NAMES: tuple[str, ...] = ()
     _output_suppress_set = frozenset(OUTPUT_SUPPRESS_CLASS_NAMES) if OUTPUT_SUPPRESS_CLASS_NAMES else frozenset()
 
     # ----------------------- 关注昆虫列表（只分析/统计/画图这些虫） -----------------------
@@ -991,12 +999,13 @@ if __name__ == "__main__":
     large_cls_list = None
     large_detect_model_path = "/Users/shunyaoyin/Documents/code/models/kuangxuan_0424.pt"
     # large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/20260426-middle-01/best.pt"
-    large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/20260426-large-02-insect/best.pt"
+    # large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/20260426-large-02-insect/best.pt"
     # large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/20260426-large-01/best.pt"
     # 若有大虫分类模型，填路径；否则 None 仅用 detect 的 class_name
-    # large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260424-all-large/best.pt"
-    large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260428-all-large/temp.pt"
-    # large_cls_model_path = None
+    large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260424-all-large/best.pt"
+    large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260428-all-large/best.pt"
+    # large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/v4-cls/temp.pt"
+    # large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/v3-cls/v3-北京/best.pt"
     large_size_config_path = None
     large_conf_thresh = 0.1
     large_clip_size = 0
@@ -1004,10 +1013,10 @@ if __name__ == "__main__":
     large_edge_reject_distance = 5
     large_edge_reject_conf_threshold = 1
     large_edge_reject_cls_conf_threshold = 0.3
-    large_cls_top1_conf_threshold = 0.45
+    large_cls_top1_conf_threshold = 0.3
     large_cls_pad_square = True
     large_detect_pad_square_full_image = True
-    large_detect_nms_iou = 0.7
+    large_detect_nms_iou = None
     large_detect_max_det = 1000
     # 跨类别 NMS：解决“两个不同 detect 类别但重叠很大”的重复框
     large_detect_nms_agnostic: bool | None = False
@@ -1021,9 +1030,9 @@ if __name__ == "__main__":
     # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/duankou_1"
     input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-测试数据集"
     input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-标准测试集"
-    input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/比赛-北京"
-    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/220988063.jpg"
-    output_dir = input_path + "_dual_validate_dv2_cv2"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/比赛-北京"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/大虫/big-insect-ori"
+    output_dir = input_path + "-kx-c2"
     predict_debug = False
     debug_clip = False
     label_mode = "minimal"  # "minimal" | "detailed"
@@ -1610,7 +1619,8 @@ if __name__ == "__main__":
         report_rate = (float(tp + ce) / denom_gt) if denom_gt > 0 else 0.0
         acc_rate = (float(tp) / denom_pred) if denom_pred > 0 else 0.0
         err_rate = (float(fp) / denom_pred) if denom_pred > 0 else 0.0
-        miss_rate = (float(fn) / denom_gt) if denom_gt > 0 else 0.0
+        # 汇总口径与按类别保持一致：类型错也计入漏检
+        miss_rate = (float(fn + ce) / denom_gt) if denom_gt > 0 else 0.0
         total_dev = miss_rate + err_rate
         return (
             f"{name}: tp={tp} fp={fp} fn={fn} cls_err={ce} geom_pairs={geom} | "
@@ -1664,7 +1674,8 @@ if __name__ == "__main__":
             fp_n = int(s.get("fp", 0))
             denom_gt = float(tp_n + ce_n + fn_n)
             denom_pred = float(tp_n + fp_n)
-            miss_rate = (float(fn_n) / denom_gt) if denom_gt > 0 else 0.0
+            # 分组口径与按类别保持一致：类型错也计入漏检
+            miss_rate = (float(fn_n + ce_n) / denom_gt) if denom_gt > 0 else 0.0
             fp_rate = (float(fp_n) / denom_pred) if denom_pred > 0 else 0.0
             total_dev = miss_rate + fp_rate
             return (

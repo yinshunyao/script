@@ -5,10 +5,13 @@
 #            - 解析 xml 的 bndbox，从图片裁剪目标
 #            - 调用分类模型（YOLO classification）
 #            - 比对预测类别与标签是否一致
-#            - 按类别统计，并导出混淆矩阵
+#            - 按类别统计，并导出混淆矩阵与「易混淆类别对」排行表（按行内混淆比例排序）
+#            - 可选落盘：误分类裁剪、分类正确裁剪（均含置信度于文件名）
+#            - 默认运行前清空 output_dir，避免与上次结果混合
 import csv
 import logging
 import os
+import shutil
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -22,6 +25,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from script.predict.model_cls import ModelCls
+from script.insect_info import c1 as DELIVERY_C1, c2 as DELIVERY_C2
 
 
 def _normalize_by_map(raw: str, mapping: dict[str, str] | None) -> str:
@@ -142,6 +146,24 @@ def _ensure_dir(p: str) -> None:
     os.makedirs(p, exist_ok=True)
 
 
+def _clear_run_output_dir(out_dir: str) -> None:
+    """若输出目录已存在则整目录删除，避免本次结果与上次裁剪图、CSV 混合。"""
+    p = Path(out_dir).expanduser().resolve()
+    if not p.exists():
+        return
+    if not p.is_dir():
+        logging.warning("输出路径已存在且不是目录，跳过清理: %s", p)
+        return
+    shutil.rmtree(p)
+    logging.info("已清理上次输出目录: %s", p)
+
+
+def _crop_export_stem(rel_path: Path, obj_index: int, pred: dict | None) -> str:
+    """导出裁剪小图文件名：原图 stem + 目标序号 + 模型置信度。"""
+    conf = float((pred or {}).get("conf", 0.0) or 0.0)
+    return f"{rel_path.stem}__obj{obj_index:03d}__conf{conf:.3f}.jpg"
+
+
 def _export_stat_by_cls_csv(out_dir: str, stat_by_cls: dict[str, dict[str, int]]) -> None:
     _ensure_dir(out_dir)
     out_path = os.path.join(out_dir, "stat_by_class.csv")
@@ -155,7 +177,7 @@ def _export_stat_by_cls_csv(out_dir: str, stat_by_cls: dict[str, dict[str, int]]
         "miss_rate",
         "fp",
         "fp_rate",
-        "acc_rate",
+        "combined_dev_rate",
     ]
     rows = []
     for cls_name, s in stat_by_cls.items():
@@ -167,7 +189,7 @@ def _export_stat_by_cls_csv(out_dir: str, stat_by_cls: dict[str, dict[str, int]]
         report_rate = (float(tp_n) / float(gt_n)) if gt_n > 0 else 0.0
         miss_rate = (float(fn_n) / float(gt_n)) if gt_n > 0 else 0.0
         fp_rate = (float(fp_n) / float(pred_n)) if pred_n > 0 else 0.0
-        acc_rate = (float(tp_n) / float(gt_n)) if gt_n > 0 else 0.0
+        combined_dev_rate = miss_rate + fp_rate
         rows.append(
             {
                 "class_norm": str(cls_name),
@@ -179,17 +201,17 @@ def _export_stat_by_cls_csv(out_dir: str, stat_by_cls: dict[str, dict[str, int]]
                 "miss_rate": round(miss_rate, 6),
                 "fp": fp_n,
                 "fp_rate": round(fp_rate, 6),
-                "acc_rate": round(acc_rate, 6),
+                "combined_dev_rate": round(combined_dev_rate, 6),
             }
         )
     # 排序优先级：
-    # 1) 正确率 acc_rate：高 -> 低
+    # 1) 综合偏差率 combined_dev_rate（漏检率+误报率）：低 -> 高
     # 2) 漏报率 miss_rate：低 -> 高
     # 3) 误报率 fp_rate：低 -> 高
     # 再按 support(gt) 高 -> 低，最后按类别名升序，保证稳定
     rows.sort(
         key=lambda r: (
-            -float(r["acc_rate"]),
+            float(r["combined_dev_rate"]),
             float(r["miss_rate"]),
             float(r["fp_rate"]),
             -int(r["gt"]),
@@ -217,6 +239,102 @@ def _export_confusion_csv(out_dir: str, cm: dict[tuple[str, str], int]) -> None:
         w.writerow(["gt\\pred"] + labels)
         for i, lab in enumerate(labels):
             w.writerow([lab] + [str(mat[i][j]) for j in range(len(labels))])
+
+
+def _confusion_row_totals(cm: dict[tuple[str, str], int]) -> dict[str, int]:
+    """每个 gt 类别在混淆矩阵中的行合计（该 gt 下的样本总数）。"""
+    row_sum: dict[str, int] = defaultdict(int)
+    for (gt, _pred), c in cm.items():
+        row_sum[str(gt)] += int(c)
+    return dict(row_sum)
+
+
+def _export_confusion_pairs_ranked_csv(out_dir: str, cm: dict[tuple[str, str], int]) -> str | None:
+    """
+    从混淆矩阵提取 gt!=pred 的误分类对，按「行内混淆比例」从高到低排序后落盘。
+
+    行内混淆比例 confusion_rate_in_gt_row = count(gt,pred) / sum_pred count(gt,*)，
+    即：在真实为 gt 的样本中，被判成 pred 的比例。
+    """
+    _ensure_dir(out_dir)
+    out_path = os.path.join(out_dir, "confusion_pairs_ranked.csv")
+    if not cm:
+        return None
+    row_totals = _confusion_row_totals(cm)
+    total_samples = sum(row_totals.values())
+    rows_out: list[dict[str, object]] = []
+    for (gt, pred), c in cm.items():
+        gt_s, pred_s = str(gt), str(pred)
+        if gt_s == pred_s:
+            continue
+        cnt = int(c)
+        if cnt <= 0:
+            continue
+        rs = int(row_totals.get(gt_s, 0))
+        rate_row = (float(cnt) / float(rs)) if rs > 0 else 0.0
+        rate_all = (float(cnt) / float(total_samples)) if total_samples > 0 else 0.0
+        rows_out.append(
+            {
+                "gt": gt_s,
+                "pred": pred_s,
+                "count": cnt,
+                "gt_row_total": rs,
+                "confusion_rate_in_gt_row": round(rate_row, 6),
+                "share_of_all_objects": round(rate_all, 6),
+            }
+        )
+    rows_out.sort(
+        key=lambda r: (
+            -float(r["confusion_rate_in_gt_row"]),  # 行内混淆比例：高 -> 低
+            -int(r["count"]),
+            str(r["gt"]),
+            str(r["pred"]),
+        )
+    )
+    headers = [
+        "gt",
+        "pred",
+        "count",
+        "gt_row_total",
+        "confusion_rate_in_gt_row",
+        "share_of_all_objects",
+    ]
+    with open(out_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=headers)
+        w.writeheader()
+        w.writerows(rows_out)
+    return out_path
+
+
+def _print_confusion_pairs_top(
+    cm: dict[tuple[str, str], int],
+    *,
+    title: str,
+    top_n: int = 20,
+) -> None:
+    """终端打印易混淆类别对（与 confusion_pairs_ranked.csv 同序，仅前若干行）。"""
+    if not cm or top_n <= 0:
+        return
+    row_totals = _confusion_row_totals(cm)
+    pairs: list[tuple[float, int, str, str]] = []
+    for (gt, pred), c in cm.items():
+        gt_s, pred_s = str(gt), str(pred)
+        if gt_s == pred_s:
+            continue
+        cnt = int(c)
+        if cnt <= 0:
+            continue
+        rs = int(row_totals.get(gt_s, 0))
+        rate_row = (float(cnt) / float(rs)) if rs > 0 else 0.0
+        pairs.append((rate_row, cnt, gt_s, pred_s))
+    pairs.sort(key=lambda x: (-x[0], -x[1], x[2], x[3]))
+    print(f"{title}（前 {min(top_n, len(pairs))} 条，按行内混淆比例从高到低）:")
+    print(f"{'gt':<28} {'pred':<28} {'个数':>8} {'行合计':>8} {'行内比例':>10}")
+    for rate_row, cnt, gt_s, pred_s in pairs[:top_n]:
+        rs = int(row_totals.get(gt_s, 0))
+        print(
+            f"{gt_s:<28} {pred_s:<28} {cnt:>8} {rs:>8} {rate_row*100:>9.2f}%"
+        )
 
 
 def _disp_w(s: str) -> int:
@@ -265,12 +383,12 @@ def _print_stat_by_cls(
         "漏报率",
         "误报FP",
         "误报率",
-        "正确率",
+        "综合偏差率",
     ]
 
     focus_set = frozenset(str(x).strip() for x in (focus or []) if str(x).strip())
 
-    rows_with_sort: list[tuple[float, float, float, int, str, list[str]]] = []
+    rows_with_sort: list[tuple[float, float, float, int, str, list[str]]] = []  # combined_dev, miss, fp, gt, name, row
     total = {"gt": 0, "pred": 0, "tp": 0, "fn": 0, "fp": 0}
     for cls_name in stat_by_cls.keys():
         if focus_set and str(cls_name) not in focus_set:
@@ -285,7 +403,7 @@ def _print_stat_by_cls(
         report_rate = (float(tp_n) / float(gt_n)) if gt_n > 0 else 0.0
         miss_rate = (float(fn_n) / float(gt_n)) if gt_n > 0 else 0.0
         fp_rate = (float(fp_n) / float(pred_n)) if pred_n > 0 else 0.0
-        acc_rate = (float(tp_n) / float(gt_n)) if gt_n > 0 else 0.0
+        combined_dev_rate = miss_rate + fp_rate
 
         row = (
             [
@@ -298,10 +416,10 @@ def _print_stat_by_cls(
                 f"{miss_rate*100:.2f}%",
                 str(fp_n),
                 f"{fp_rate*100:.2f}%",
-                f"{acc_rate*100:.2f}%",
+                f"{combined_dev_rate*100:.2f}%",
             ]
         )
-        rows_with_sort.append((float(acc_rate), float(miss_rate), float(fp_rate), int(gt_n), str(cls_name), row))
+        rows_with_sort.append((float(combined_dev_rate), float(miss_rate), float(fp_rate), int(gt_n), str(cls_name), row))
         total["gt"] += gt_n
         total["pred"] += pred_n
         total["tp"] += tp_n
@@ -310,7 +428,7 @@ def _print_stat_by_cls(
 
     rows_with_sort.sort(
         key=lambda x: (
-            -x[0],  # acc_rate desc
+            x[0],  # combined_dev_rate asc（越低越好）
             x[1],  # miss_rate asc
             x[2],  # fp_rate asc
             -x[3],  # support desc
@@ -319,18 +437,25 @@ def _print_stat_by_cls(
     )
     rows = [r for _acc, _miss, _fp, _gt, _name, r in rows_with_sort]
 
+    total_gt = int(total["gt"])
+    total_pred = int(total["pred"])
+    total_fn = int(total["fn"])
+    total_fp = int(total["fp"])
+    total_miss_r = (float(total_fn) / float(total_gt)) if total_gt > 0 else 0.0
+    total_fp_r = (float(total_fp) / float(total_pred)) if total_pred > 0 else 0.0
+    total_combined_dev = total_miss_r + total_fp_r
     all_lines = [headers] + rows + [
         [
             "合计",
-            str(total["gt"]),
-            str(total["pred"]),
+            str(total_gt),
+            str(total_pred),
             str(total["tp"]),
             "",
-            str(total["fn"]),
+            str(total_fn),
             "",
-            str(total["fp"]),
+            str(total_fp),
             "",
-            "",
+            f"{total_combined_dev*100:.2f}%",
         ]
     ]
     widths = [0] * len(headers)
@@ -363,16 +488,27 @@ if __name__ == "__main__":
     # 输入：图片 + 同名 xml（Pascal VOC）
     input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/比赛-北京"
     # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-标准测试集"
-    input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-测试数据集"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-测试数据集"
     # 分类模型（Ultralytics YOLO classification）
     # cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260424-all-large/best.pt"
-    cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260428-all-large/temp.pt"
+    cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v2-20260428-all-large/best.pt"
+    # v4
+    # cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v4-cls/temp.pt"
+    # v5
+    cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v5-cls/best.pt"
 
     # 输出
-    output_dir = input_path + "v2"
+    output_dir = input_path + "-v5"
     # 只打印关注类别（可选）：仅影响“按类别统计”的打印，不影响统计与 CSV/混淆矩阵落盘
     # 例：FOCUS_CLASS_NAMES = ("bazidilaohu", "caodiming")
-    FOCUS_CLASS_NAMES: tuple[str, ...] | None = ("bazidilaohu", "caodiming", "erdianweiyee", "yindingyee")
+    # FOCUS_CLASS_NAMES: tuple[str, ...] | None = (
+    #     # 一级
+    #     "caodiming", "daozongjuanyeming", "yumiming", "caoditanyee",
+    #     "erhuaming",  "laoshinianchong", "laoshinianchong", "feihuang",
+    #     "daofeishi", "hefeishi"
+    # )
+    FOCUS_CLASS_NAMES = None
+
 
     # 类别归一（可选）：用于“标签一致性判断”和最终统计的类名归一
     # 说明：和 `script/predict_size_validate.py` 一样，key 为归一名，values 为别名列表。
@@ -384,8 +520,12 @@ if __name__ == "__main__":
     # XML_NAME_TO_CANON = {"灰飞虱": "huifeishi", "白背飞虱": "baibeifeishi"}
     # PRED_NAME_TO_CANON = {"baifeifeishi": "baibeifeishi"}  # 模型输出别名 -> 标准名
     XML_NAME_TO_CANON: dict[str, str] | None = {
-        "dongfangzhanchong": "dongfangnainchong",
-        "laoshizhanchong": "laoshinianchong"
+        "dongfangzhanchong": "dongfangnianchong",
+        "laoshizhanchong": "laoshinianchong",
+        "baibeifeishi": "daofeishi",
+        # "daofeishi": "daofeishi",
+        "hefeishi": "daofeishi",
+        "dawen": "wen",
     }
     PRED_NAME_TO_CANON: dict[str, str] | None = None
 
@@ -395,11 +535,17 @@ if __name__ == "__main__":
     cls_gray_binarize: bool = False
     # 是否保存误分类裁剪小图（会按 gt/pred 分目录存，便于快速排查）
     save_misclassified_crops: bool = True
+    # 是否保存分类正确的裁剪小图（按归一化类别 class= 分目录，文件名含置信度）
+    save_correct_crops: bool = True
+    # 运行前是否清空整个 output_dir（删除上次验证产物，避免混合）
+    clean_output_before_run: bool = True
 
     # ------------------------------------------------------------
 
     input_p, image_files = _collect_images(input_path)
     print(f"共找到 {len(image_files)} 张图片")
+    if clean_output_before_run:
+        _clear_run_output_dir(output_dir)
     _ensure_dir(output_dir)
 
     classifier = ModelCls(
@@ -491,6 +637,15 @@ if __name__ == "__main__":
                 _inc(gt_norm, "tp", 1)
                 sum_tp += 1
                 per_img_correct += 1
+                if save_correct_crops:
+                    stem = _crop_export_stem(rel_path, oi, pred)
+                    out_ok = os.path.join(
+                        output_dir,
+                        "classified_crops",
+                        f"class={gt_norm}",
+                    )
+                    _ensure_dir(out_ok)
+                    cv2.imwrite(os.path.join(out_ok, stem), crop)
             else:
                 # 分类模型每个 GT 都会给出一个预测：
                 # - 对 GT 类别来说是 FN（漏报/没报对）
@@ -505,15 +660,27 @@ if __name__ == "__main__":
             sum_gt += 1
 
             if save_misclassified_crops and (not ok):
-                out_sub = os.path.join(
+                stem = _crop_export_stem(rel_path, oi, pred)
+
+                # 原有索引：先按 GT，再按 Pred
+                out_sub_gt_first = os.path.join(
                     output_dir,
                     "misclassified_crops",
                     f"gt={gt_norm}",
                     f"pred={pred_norm}",
                 )
-                _ensure_dir(out_sub)
-                stem = f"{rel_path.stem}__obj{oi:03d}__conf{float((pred or {}).get('conf', 0.0) or 0.0):.3f}.jpg"
-                cv2.imwrite(os.path.join(out_sub, stem), crop)
+                _ensure_dir(out_sub_gt_first)
+                cv2.imwrite(os.path.join(out_sub_gt_first, stem), crop)
+
+                # 新增反向索引：先按 Pred，再按 GT（便于从预测类别反查）
+                out_sub_pred_first = os.path.join(
+                    output_dir,
+                    "misclassified_crops_by_pred",
+                    f"pred={pred_norm}",
+                    f"gt={gt_norm}",
+                )
+                _ensure_dir(out_sub_pred_first)
+                cv2.imwrite(os.path.join(out_sub_pred_first, stem), crop)
 
         print(
             f"[{idx}/{len(image_files)}] {rel_path}  objs={per_img_total}  "
@@ -532,7 +699,28 @@ if __name__ == "__main__":
     )
 
     _print_stat_by_cls("按类别统计", stat_by_cls, focus=frozenset(FOCUS_CLASS_NAMES or []))
+
+    def _normalize_delivery_focus(names: set[str]) -> frozenset[str]:
+        out: set[str] = set()
+        for n in names:
+            raw = str(n or "").strip()
+            if not raw:
+                continue
+            out.add(raw)
+            out.add(normalize_class_name(raw, CLASS_MERGE_TO_GROUPS, mapping=XML_NAME_TO_CANON))
+            out.add(normalize_class_name(raw, CLASS_MERGE_TO_GROUPS, mapping=PRED_NAME_TO_CANON))
+        return frozenset(x for x in out if str(x).strip())
+
+    delivery_c1_focus = _normalize_delivery_focus(set(DELIVERY_C1))
+    delivery_c2_focus = _normalize_delivery_focus(set(DELIVERY_C2.keys()))
+
+    _print_stat_by_cls("一类交付害虫统计", stat_by_cls, focus=delivery_c1_focus)
+    _print_stat_by_cls("二类交付害虫统计", stat_by_cls, focus=delivery_c2_focus)
     _export_stat_by_cls_csv(output_dir, stat_by_cls)
     _export_confusion_csv(output_dir, dict(cm))
+    pairs_path = _export_confusion_pairs_ranked_csv(output_dir, dict(cm))
+    _print_confusion_pairs_top(dict(cm), title="易混淆类别对")
     print(f"输出目录: {output_dir}")
+    if pairs_path:
+        print(f"易混淆类别对排行表: {pairs_path}")
 

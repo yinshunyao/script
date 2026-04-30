@@ -1,0 +1,4540 @@
+{
+  "anheisaijingui": {
+    "body_length_mm": {
+      "max_mm": 21.0,
+      "min_mm": 17.0,
+      "note": null,
+      "raw": "17–21"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "anheisaijingui",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 21.0,
+    "min_mm": 17.0,
+    "name_zh": "暗黑鳃金龟",
+    "patch_average_px": {
+      "height_px": 642,
+      "raw": "686×642",
+      "width_px": 686
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "anheisaijingui",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 188,
+    "sheet_row": 76,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "badianhuidenge": {
+    "body_length_mm": {
+      "max_mm": 18.0,
+      "min_mm": 14.0,
+      "note": null,
+      "raw": "14–18"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "badianhuidenge",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 18.0,
+    "min_mm": 14.0,
+    "name_zh": "八点灰灯蛾",
+    "patch_average_px": {
+      "height_px": 710,
+      "raw": "706×710",
+      "width_px": 706
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "badianhuidenge",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 173,
+    "sheet_row": 77,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "baibeifeishi": {
+    "body_length_mm": {
+      "max_mm": 4.0,
+      "min_mm": 3.0,
+      "note": null,
+      "raw": "3–4"
+    },
+    "category": "国家一类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "小虫",
+    "max_mm": 4.0,
+    "min_mm": 3.0,
+    "name_zh": "白背飞虱",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "小虫",
+      "is_other_dataset_class": false,
+      "label_zh": "国家一类害虫",
+      "national_list_class": 1
+    },
+    "pinyin": "baibeifeishi",
+    "regions": [
+      "全国（稻飞虱）"
+    ],
+    "regions_raw": "全国（稻飞虱）",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 46,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "baibianqieyee": {
+    "body_length_mm": {
+      "max_mm": 17.0,
+      "min_mm": 13.0,
+      "note": null,
+      "raw": "13–17"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "baibianqieyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 17.0,
+    "min_mm": 13.0,
+    "name_zh": "白边切夜蛾",
+    "patch_average_px": {
+      "height_px": 613,
+      "raw": "691×613",
+      "width_px": 691
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "baibianqieyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 351,
+    "sheet_row": 78,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "baitiaoyee": {
+    "body_length_mm": {
+      "max_mm": 18.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–18"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "baitiaoyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 18.0,
+    "min_mm": 15.0,
+    "name_zh": "白条夜蛾",
+    "patch_average_px": {
+      "height_px": 605,
+      "raw": "585×605",
+      "width_px": 585
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "baitiaoyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 374,
+    "sheet_row": 79,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "bazidilaohu": {
+    "body_length_mm": {
+      "max_mm": 22.0,
+      "min_mm": 18.0,
+      "note": null,
+      "raw": "18–22"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "bazidilaohu;bazidilaohu-bei;bazidilaohu-fu",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 22.0,
+    "min_mm": 18.0,
+    "name_zh": "八字地老虎",
+    "patch_average_px": {
+      "height_px": 619,
+      "raw": "656×619",
+      "width_px": 656
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "bazidilaohu",
+    "regions": [
+      "华北",
+      "西南",
+      "西北"
+    ],
+    "regions_raw": "华北、西南、西北",
+    "remark": null,
+    "sample_count": 775,
+    "sheet_row": 17,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "biancie": {
+    "body_length_mm": {
+      "max_mm": 15.0,
+      "min_mm": 12.0,
+      "note": null,
+      "raw": "12–15"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "biancie",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 15.0,
+    "min_mm": 12.0,
+    "name_zh": "扁刺蛾-北京",
+    "patch_average_px": {
+      "height_px": 545,
+      "raw": "623×545",
+      "width_px": 623
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "biancie",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 190,
+    "sheet_row": 80,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "caiqingchong": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–20"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "youcaijiaoyeming",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 20.0,
+    "min_mm": 15.0,
+    "name_zh": "菜青虫",
+    "patch_average_px": {
+      "height_px": 480,
+      "raw": "510×480",
+      "width_px": 510
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "caiqingchong",
+    "regions": [
+      "华东",
+      "西南"
+    ],
+    "regions_raw": "华东、西南",
+    "remark": null,
+    "sample_count": 957,
+    "sheet_row": 25,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "caodiming": {
+    "body_length_mm": {
+      "max_mm": 15.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–15"
+    },
+    "category": "国家一类害虫",
+    "data_dirs_raw": "caodiming",
+    "deliver_biong": true,
+    "group": "大虫一级害虫",
+    "max_mm": 15.0,
+    "min_mm": 10.0,
+    "name_zh": "草地螟",
+    "patch_average_px": {
+      "height_px": 535,
+      "raw": "514×535",
+      "width_px": 514
+    },
+    "pest_level": {
+      "group_zh": "大虫一级害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "国家一类害虫",
+      "national_list_class": 1
+    },
+    "pinyin": "caodiming",
+    "regions": [
+      "全国"
+    ],
+    "regions_raw": "全国",
+    "remark": null,
+    "sample_count": 189,
+    "sheet_row": 4,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "caoditanyee": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–20"
+    },
+    "category": "国家一类害虫",
+    "data_dirs_raw": "caoditanyee",
+    "deliver_biong": true,
+    "group": "大虫一级害虫",
+    "max_mm": 20.0,
+    "min_mm": 15.0,
+    "name_zh": "草地贪夜蛾",
+    "patch_average_px": {
+      "height_px": 577,
+      "raw": "512×577",
+      "width_px": 512
+    },
+    "pest_level": {
+      "group_zh": "大虫一级害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "国家一类害虫",
+      "national_list_class": 1
+    },
+    "pinyin": "caoditanyee",
+    "regions": [
+      "全国"
+    ],
+    "regions_raw": "全国",
+    "remark": null,
+    "sample_count": 183,
+    "sheet_row": 5,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "chachihuo": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–20"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "youtongchihuo",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 20.0,
+    "min_mm": 15.0,
+    "name_zh": "茶尺蠖",
+    "patch_average_px": {
+      "height_px": 1044,
+      "raw": "1189×1044",
+      "width_px": 1189
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "chachihuo",
+    "regions": [
+      "西南（与茶毛虫等）"
+    ],
+    "regions_raw": "西南（与茶毛虫等）",
+    "remark": null,
+    "sample_count": 134,
+    "sheet_row": 26,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "chamaochong": {
+    "body_length_mm": {
+      "max_mm": 16.0,
+      "min_mm": 12.0,
+      "note": null,
+      "raw": "12–16"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 16.0,
+    "min_mm": 12.0,
+    "name_zh": "茶毛虫",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "chamaochong",
+    "regions": [
+      "西南（与茶尺蠖等）"
+    ],
+    "regions_raw": "西南（与茶尺蠖等）",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 27,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "chaxiaolvyechan": {
+    "body_length_mm": {
+      "max_mm": 4.0,
+      "min_mm": 3.0,
+      "note": null,
+      "raw": "3–4"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "daqingyechan",
+    "deliver_biong": true,
+    "group": "小虫",
+    "max_mm": 4.0,
+    "min_mm": 3.0,
+    "name_zh": "茶小绿叶蝉",
+    "patch_average_px": {
+      "height_px": 182,
+      "raw": "302×182",
+      "width_px": 302
+    },
+    "pest_level": {
+      "group_zh": "小虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "chaxiaolvyechan",
+    "regions": [
+      "华东",
+      "西南"
+    ],
+    "regions_raw": "华东、西南",
+    "remark": null,
+    "sample_count": 75,
+    "sheet_row": 47,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "chixumangchun": {
+    "body_length_mm": {
+      "max_mm": 8.0,
+      "min_mm": 6.0,
+      "note": null,
+      "raw": "6–8"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 8.0,
+    "min_mm": 6.0,
+    "name_zh": "赤须盲蝽",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "chixumangchun",
+    "regions": [
+      "华北",
+      "西南",
+      "西北（盲蝽合注）"
+    ],
+    "regions_raw": "华北、西南、西北（盲蝽合注）",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 28,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "chunlue": {
+    "body_length_mm": {
+      "max_mm": 17.0,
+      "min_mm": 13.0,
+      "note": null,
+      "raw": "13–17"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "chunlue",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 17.0,
+    "min_mm": 13.0,
+    "name_zh": "春鹿蛾",
+    "patch_average_px": {
+      "height_px": 531,
+      "raw": "564×531",
+      "width_px": 564
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "chunlue",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 29,
+    "sheet_row": 81,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "dadilaohu": {
+    "body_length_mm": {
+      "max_mm": 25.0,
+      "min_mm": 20.0,
+      "note": null,
+      "raw": "20–25"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "dadilaohu",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 25.0,
+    "min_mm": 20.0,
+    "name_zh": "大地老虎",
+    "patch_average_px": {
+      "height_px": 849,
+      "raw": "856×849",
+      "width_px": 856
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "dadilaohu",
+    "regions": [
+      "华北",
+      "西南",
+      "西北"
+    ],
+    "regions_raw": "华北、西南、西北",
+    "remark": null,
+    "sample_count": 450,
+    "sheet_row": 14,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "dadoushixinchong": {
+    "body_length_mm": {
+      "max_mm": 10.0,
+      "min_mm": 8.0,
+      "note": null,
+      "raw": "8–10"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 10.0,
+    "min_mm": 8.0,
+    "name_zh": "大豆食心虫",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "dadoushixinchong",
+    "regions": [
+      "东北",
+      "西南"
+    ],
+    "regions_raw": "东北、西南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 54,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "daheisaijingui": {
+    "body_length_mm": {
+      "max_mm": 26.0,
+      "min_mm": 20.0,
+      "note": null,
+      "raw": "20–26"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "daheisaijingui",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 26.0,
+    "min_mm": 20.0,
+    "name_zh": "大黑鳃金龟",
+    "patch_average_px": {
+      "height_px": 647,
+      "raw": "727×647",
+      "width_px": 727
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "daheisaijingui",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 76,
+    "sheet_row": 82,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "daming": {
+    "body_length_mm": {
+      "max_mm": 18.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–18"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "daming",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 18.0,
+    "min_mm": 15.0,
+    "name_zh": "大螟",
+    "patch_average_px": {
+      "height_px": 457,
+      "raw": "464×457",
+      "width_px": 464
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "daming",
+    "regions": [
+      "华东",
+      "西南"
+    ],
+    "regions_raw": "华东、西南",
+    "remark": null,
+    "sample_count": 139,
+    "sheet_row": 21,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "daodue": {
+    "body_length_mm": {
+      "max_mm": 16.0,
+      "min_mm": 12.0,
+      "note": null,
+      "raw": "12–16"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "daodue",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 16.0,
+    "min_mm": 12.0,
+    "name_zh": "稻毒蛾",
+    "patch_average_px": {
+      "height_px": 388,
+      "raw": "378×388",
+      "width_px": 378
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "daodue",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 84,
+    "sheet_row": 83,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "daoshuixiangjia": {
+    "body_length_mm": {
+      "max_mm": 4.0,
+      "min_mm": 3.0,
+      "note": null,
+      "raw": "3–4"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "小虫",
+    "max_mm": 4.0,
+    "min_mm": 3.0,
+    "name_zh": "稻水相甲",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "小虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "daoshuixiangjia",
+    "regions": [
+      "西南",
+      "东北"
+    ],
+    "regions_raw": "西南、东北",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 48,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "daoyingwen": {
+    "body_length_mm": {
+      "max_mm": 5.0,
+      "min_mm": 3.0,
+      "note": null,
+      "raw": "3–5"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 5.0,
+    "min_mm": 3.0,
+    "name_zh": "稻瘿蚊",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "daoyingwen",
+    "regions": [
+      "华南"
+    ],
+    "regions_raw": "华南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 63,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "daozongjuanyeming": {
+    "body_length_mm": {
+      "max_mm": 10.0,
+      "min_mm": 8.0,
+      "note": null,
+      "raw": "8–10"
+    },
+    "category": "国家一类害虫",
+    "data_dirs_raw": "daozongjuanyeming",
+    "deliver_biong": true,
+    "group": "大虫一级害虫",
+    "max_mm": 10.0,
+    "min_mm": 8.0,
+    "name_zh": "稻纵卷叶螟",
+    "patch_average_px": {
+      "height_px": 304,
+      "raw": "305×304",
+      "width_px": 305
+    },
+    "pest_level": {
+      "group_zh": "大虫一级害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "国家一类害虫",
+      "national_list_class": 1
+    },
+    "pinyin": "daozongjuanyeming",
+    "regions": [
+      "全国"
+    ],
+    "regions_raw": "全国",
+    "remark": null,
+    "sample_count": 620,
+    "sheet_row": 3,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "dawen": {
+    "body_length_mm": {
+      "max_mm": 22.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–22"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "dawen",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 22.0,
+    "min_mm": 15.0,
+    "name_zh": "大蚊",
+    "patch_average_px": {
+      "height_px": 638,
+      "raw": "678×638",
+      "width_px": 678
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "dawen",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 69,
+    "sheet_row": 84,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "dongfanglougu": {
+    "body_length_mm": {
+      "max_mm": 50.0,
+      "min_mm": 30.0,
+      "note": null,
+      "raw": "30–50"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "dongfanglougu",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 50.0,
+    "min_mm": 30.0,
+    "name_zh": "东方蝼蛄",
+    "patch_average_px": {
+      "height_px": 1018,
+      "raw": "1008×1018",
+      "width_px": 1008
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "dongfanglougu",
+    "regions": [
+      "西南"
+    ],
+    "regions_raw": "西南",
+    "remark": null,
+    "sample_count": 140,
+    "sheet_row": 20,
+    "size_label": "大虫",
+    "training_plan_reserve_row": false
+  },
+  "dongfangnianchong": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–20"
+    },
+    "category": "国家一类害虫",
+    "data_dirs_raw": "dongfangnianchong",
+    "deliver_biong": true,
+    "group": "大虫一级害虫",
+    "max_mm": 20.0,
+    "min_mm": 15.0,
+    "name_zh": "东方粘虫",
+    "patch_average_px": {
+      "height_px": 727,
+      "raw": "700×727",
+      "width_px": 700
+    },
+    "pest_level": {
+      "group_zh": "大虫一级害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "国家一类害虫",
+      "national_list_class": 1
+    },
+    "pinyin": "dongfangnianchong",
+    "regions": [
+      "全国"
+    ],
+    "regions_raw": "全国",
+    "remark": null,
+    "sample_count": 109,
+    "sheet_row": 8,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "doujiajiaming": {
+    "body_length_mm": {
+      "max_mm": 10.0,
+      "min_mm": 8.0,
+      "note": null,
+      "raw": "8–10"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "douyeming",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 10.0,
+    "min_mm": 8.0,
+    "name_zh": "豆荚荚螟",
+    "patch_average_px": {
+      "height_px": 434,
+      "raw": "434×434",
+      "width_px": 434
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "doujiajiaming",
+    "regions": [
+      "西南（与豆荚野螟等）"
+    ],
+    "regions_raw": "西南（与豆荚野螟等）",
+    "remark": null,
+    "sample_count": 288,
+    "sheet_row": 29,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "doujiayeming": {
+    "body_length_mm": {
+      "max_mm": 12.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–12"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "douyeming",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 12.0,
+    "min_mm": 10.0,
+    "name_zh": "豆荚野螟",
+    "patch_average_px": {
+      "height_px": 434,
+      "raw": "434×434",
+      "width_px": 434
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "doujiayeming",
+    "regions": [
+      "西南"
+    ],
+    "regions_raw": "西南",
+    "remark": null,
+    "sample_count": 288,
+    "sheet_row": 30,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "erdianming": {
+    "body_length_mm": {
+      "max_mm": 14.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–14"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "sibanjuanyeming",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 14.0,
+    "min_mm": 10.0,
+    "name_zh": "二点螟",
+    "patch_average_px": {
+      "height_px": 640,
+      "raw": "514×640",
+      "width_px": 514
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "erdianming",
+    "regions": [
+      "西南（与条螟/桑螟/黄螟等合注）"
+    ],
+    "regions_raw": "西南（与条螟/桑螟/黄螟等合注）",
+    "remark": null,
+    "sample_count": 8,
+    "sheet_row": 31,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "erdianweiyee": {
+    "body_length_mm": {
+      "max_mm": 22.0,
+      "min_mm": 18.0,
+      "note": null,
+      "raw": "18–22"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "erdianweiyee;erdianweiyee-ba",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 22.0,
+    "min_mm": 18.0,
+    "name_zh": "二点委夜蛾",
+    "patch_average_px": {
+      "height_px": 429,
+      "raw": "443×429",
+      "width_px": 443
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "erdianweiyee",
+    "regions": [
+      "华北",
+      "西南"
+    ],
+    "regions_raw": "华北、西南",
+    "remark": null,
+    "sample_count": 645,
+    "sheet_row": 18,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "erhuaming": {
+    "body_length_mm": {
+      "max_mm": 13.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–13"
+    },
+    "category": "国家一类害虫",
+    "data_dirs_raw": "erhuaming",
+    "deliver_biong": true,
+    "group": "大虫一级害虫",
+    "max_mm": 13.0,
+    "min_mm": 10.0,
+    "name_zh": "二化螟",
+    "patch_average_px": {
+      "height_px": 366,
+      "raw": "277×366",
+      "width_px": 277
+    },
+    "pest_level": {
+      "group_zh": "大虫一级害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "国家一类害虫",
+      "national_list_class": 1
+    },
+    "pinyin": "erhuaming",
+    "regions": [
+      "全国"
+    ],
+    "regions_raw": "全国",
+    "remark": null,
+    "sample_count": 178,
+    "sheet_row": 6,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "fanqieqianyee": {
+    "body_length_mm": {
+      "max_mm": 7.0,
+      "min_mm": 5.0,
+      "note": null,
+      "raw": "5–7"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "jingwendiyee",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 7.0,
+    "min_mm": 5.0,
+    "name_zh": "番茄潜叶蛾",
+    "patch_average_px": {
+      "height_px": 719,
+      "raw": "756×719",
+      "width_px": 756
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "fanqieqianyee",
+    "regions": [
+      "西北"
+    ],
+    "regions_raw": "西北",
+    "remark": null,
+    "sample_count": 331,
+    "sheet_row": 32,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "fayee": {
+    "body_length_mm": {
+      "max_mm": 21.0,
+      "min_mm": 17.0,
+      "note": null,
+      "raw": "17–21"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "fayee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 21.0,
+    "min_mm": 17.0,
+    "name_zh": "乏夜蛾",
+    "patch_average_px": {
+      "height_px": 566,
+      "raw": "556×566",
+      "width_px": 556
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "fayee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 136,
+    "sheet_row": 85,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "feihuang": {
+    "body_length_mm": {
+      "max_mm": 55.0,
+      "min_mm": 35.0,
+      "note": null,
+      "raw": "35–55"
+    },
+    "category": "国家一类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "大虫一级害虫",
+    "max_mm": 55.0,
+    "min_mm": 35.0,
+    "name_zh": "飞蝗",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "大虫一级害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "国家一类害虫",
+      "national_list_class": 1
+    },
+    "pinyin": "feihuang",
+    "regions": [
+      "全国"
+    ],
+    "regions_raw": "全国",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 9,
+    "size_label": "大虫",
+    "training_plan_reserve_row": false
+  },
+  "fendiedenge": {
+    "body_length_mm": {
+      "max_mm": 24.0,
+      "min_mm": 18.0,
+      "note": null,
+      "raw": "18–24"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "fendiedenge",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 24.0,
+    "min_mm": 18.0,
+    "name_zh": "粉蝶灯蛾",
+    "patch_average_px": {
+      "height_px": 944,
+      "raw": "912×944",
+      "width_px": 912
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "fendiedenge",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 104,
+    "sheet_row": 86,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "ganjudashiying": {
+    "body_length_mm": {
+      "max_mm": 12.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–12"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 12.0,
+    "min_mm": 10.0,
+    "name_zh": "柑橘大实蝇",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "ganjudashiying",
+    "regions": [
+      "华中",
+      "西南"
+    ],
+    "regions_raw": "华中、西南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 33,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "ganjuhongzhizhu": {
+    "body_length_mm": {
+      "max_mm": 0.3,
+      "min_mm": 0.3,
+      "note": "表格为螨成体尺度(约 mm)，非鳞翅目成虫体长",
+      "raw": "成螨约0.3"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 0.3,
+    "min_mm": 0.3,
+    "name_zh": "柑橘红蜘蛛",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "ganjuhongzhizhu",
+    "regions": [
+      "华东"
+    ],
+    "regions_raw": "华东",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 60,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "ganjuqianyee": {
+    "body_length_mm": {
+      "max_mm": 4.0,
+      "min_mm": 2.0,
+      "note": null,
+      "raw": "2–4"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "小虫",
+    "max_mm": 4.0,
+    "min_mm": 2.0,
+    "name_zh": "柑橘潜叶蛾",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "小虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "ganjuqianyee",
+    "regions": [
+      "西南"
+    ],
+    "regions_raw": "西南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 49,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "ganjuxiaoshiying": {
+    "body_length_mm": {
+      "max_mm": 9.0,
+      "min_mm": 7.0,
+      "note": null,
+      "raw": "7–9"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 9.0,
+    "min_mm": 7.0,
+    "name_zh": "柑橘小实蝇",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "ganjuxiaoshiying",
+    "regions": [
+      "华中",
+      "华南",
+      "西南"
+    ],
+    "regions_raw": "华中、华南、西南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 34,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "ganjuxiubisai": {
+    "body_length_mm": {
+      "max_mm": 0.2,
+      "min_mm": 0.2,
+      "note": "表格为螨成体尺度(约 mm)，非鳞翅目成虫体长",
+      "raw": "成螨约0.2"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 0.2,
+    "min_mm": 0.2,
+    "name_zh": "柑橘锈壁虱",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "ganjuxiubisai",
+    "regions": [
+      "华东"
+    ],
+    "regions_raw": "华东",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 61,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "ganlanyee": {
+    "body_length_mm": {
+      "max_mm": 23.0,
+      "min_mm": 18.0,
+      "note": null,
+      "raw": "18–23"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "ganlanyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 23.0,
+    "min_mm": 18.0,
+    "name_zh": "甘蓝夜蛾",
+    "patch_average_px": {
+      "height_px": 752,
+      "raw": "738×752",
+      "width_px": 738
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "ganlanyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 314,
+    "sheet_row": 87,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "ganweidongyee": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 16.0,
+      "note": null,
+      "raw": "16–20"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "ganweidongyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 20.0,
+    "min_mm": 16.0,
+    "name_zh": "干纹冬夜蛾",
+    "patch_average_px": {
+      "height_px": 708,
+      "raw": "736×708",
+      "width_px": 736
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "ganweidongyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 360,
+    "sheet_row": 88,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "gouqiyachong": {
+    "body_length_mm": {
+      "max_mm": 2.2,
+      "min_mm": 1.5,
+      "note": null,
+      "raw": "1.5–2.2"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 2.2,
+    "min_mm": 1.5,
+    "name_zh": "枸杞蚜虫",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "gouqiyachong",
+    "regions": [
+      "西北"
+    ],
+    "regions_raw": "西北",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 73,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "gouqiyinman": {
+    "body_length_mm": {
+      "max_mm": 0.2,
+      "min_mm": 0.2,
+      "note": "表格为螨成体尺度(约 mm)，非鳞翅目成虫体长",
+      "raw": "成螨约0.2"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 0.2,
+    "min_mm": 0.2,
+    "name_zh": "枸杞瘿螨",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "gouqiyinman",
+    "regions": [
+      "西北"
+    ],
+    "regions_raw": "西北",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 74,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "gouyuetiane": {
+    "body_length_mm": {
+      "max_mm": 48.0,
+      "min_mm": 38.0,
+      "note": null,
+      "raw": "38–48"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "gouyuetiane",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 48.0,
+    "min_mm": 38.0,
+    "name_zh": "构月天蛾",
+    "patch_average_px": {
+      "height_px": 1462,
+      "raw": "1510×1462",
+      "width_px": 1510
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "gouyuetiane",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 96,
+    "sheet_row": 89,
+    "size_label": "大虫",
+    "training_plan_reserve_row": false
+  },
+  "guajuanming": {
+    "body_length_mm": {
+      "max_mm": 13.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–13"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "guajuanming",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 13.0,
+    "min_mm": 10.0,
+    "name_zh": "瓜绢螟",
+    "patch_average_px": {
+      "height_px": 447,
+      "raw": "459×447",
+      "width_px": 459
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "guajuanming",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 315,
+    "sheet_row": 90,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "guashiying": {
+    "body_length_mm": {
+      "max_mm": 7.0,
+      "min_mm": 5.0,
+      "note": null,
+      "raw": "5–7"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 7.0,
+    "min_mm": 5.0,
+    "name_zh": "瓜实蝇",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "guashiying",
+    "regions": [
+      "华南"
+    ],
+    "regions_raw": "华南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 69,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "hefeishi": {
+    "body_length_mm": {
+      "max_mm": 4.0,
+      "min_mm": 3.0,
+      "note": null,
+      "raw": "3–4"
+    },
+    "category": "国家一类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "小虫",
+    "max_mm": 4.0,
+    "min_mm": 3.0,
+    "name_zh": "褐飞虱",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "小虫",
+      "is_other_dataset_class": false,
+      "label_zh": "国家一类害虫",
+      "national_list_class": 1
+    },
+    "pinyin": "hefeishi",
+    "regions": [
+      "全国（稻飞虱）"
+    ],
+    "regions_raw": "全国（稻飞虱）",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 50,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "heidiantaie": {
+    "body_length_mm": {
+      "max_mm": 14.0,
+      "min_mm": 11.0,
+      "note": null,
+      "raw": "11–14"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "heidiantaie",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 14.0,
+    "min_mm": 11.0,
+    "name_zh": "黑点苔蛾",
+    "patch_average_px": {
+      "height_px": 523,
+      "raw": "595×523",
+      "width_px": 595
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "heidiantaie",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 300,
+    "sheet_row": 91,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "honghuoyi": {
+    "body_length_mm": {
+      "max_mm": 5.0,
+      "min_mm": 3.0,
+      "note": "(工蚁)",
+      "raw": "3–5(工蚁)"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 5.0,
+    "min_mm": 3.0,
+    "name_zh": "红火蚁",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "honghuoyi",
+    "regions": [
+      "华南"
+    ],
+    "regions_raw": "华南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 70,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "hongjiaolvlijingui": {
+    "body_length_mm": {
+      "max_mm": 21.0,
+      "min_mm": 17.0,
+      "note": null,
+      "raw": "17–21"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "hongjiaolvlijingui",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 21.0,
+    "min_mm": 17.0,
+    "name_zh": "红脚绿丽金龟",
+    "patch_average_px": {
+      "height_px": 880,
+      "raw": "855×880",
+      "width_px": 855
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "hongjiaolvlijingui",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 42,
+    "sheet_row": 92,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "huajinglvwenhuang": {
+    "body_length_mm": {
+      "max_mm": 52.0,
+      "min_mm": 35.0,
+      "note": null,
+      "raw": "35–52"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "huajinglvwenhuang",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 52.0,
+    "min_mm": 35.0,
+    "name_zh": "花胫绿纹蝗",
+    "patch_average_px": {
+      "height_px": 817,
+      "raw": "921×817",
+      "width_px": 921
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "huajinglvwenhuang",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 124,
+    "sheet_row": 93,
+    "size_label": "大虫",
+    "training_plan_reserve_row": false
+  },
+  "huanan_ming_hetong": {
+    "body_length_mm": {
+      "max_mm": 18.0,
+      "min_mm": 10.0,
+      "note": "(类合称)",
+      "raw": "10–18(类合称)"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 18.0,
+    "min_mm": 10.0,
+    "name_zh": "螟虫（黄螟、条螟等，华南训练合称）",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "huanan_ming_hetong",
+    "regions": [
+      "华南"
+    ],
+    "regions_raw": "华南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 68,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "huangchizhuiyeyeming": {
+    "body_length_mm": {
+      "max_mm": 13.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–13"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "huangchizhuiyeyeming",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 13.0,
+    "min_mm": 10.0,
+    "name_zh": "黄翅缀叶野螟",
+    "patch_average_px": {
+      "height_px": 511,
+      "raw": "534×511",
+      "width_px": 534
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "huangchizhuiyeyeming",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 303,
+    "sheet_row": 94,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "huangdilaohu": {
+    "body_length_mm": {
+      "max_mm": 22.0,
+      "min_mm": 18.0,
+      "note": null,
+      "raw": "18–22"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "huangdilaohu",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 22.0,
+    "min_mm": 18.0,
+    "name_zh": "黄地老虎",
+    "patch_average_px": {
+      "height_px": 673,
+      "raw": "660×673",
+      "width_px": 660
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "huangdilaohu",
+    "regions": [
+      "华北",
+      "西南",
+      "西北"
+    ],
+    "regions_raw": "华北、西南、西北",
+    "remark": null,
+    "sample_count": 131,
+    "sheet_row": 22,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "huangheyilijingui": {
+    "body_length_mm": {
+      "max_mm": 18.0,
+      "min_mm": 14.0,
+      "note": null,
+      "raw": "14–18"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "huangheyilijingui",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 18.0,
+    "min_mm": 14.0,
+    "name_zh": "黄褐异丽金龟",
+    "patch_average_px": {
+      "height_px": 517,
+      "raw": "539×517",
+      "width_px": 539
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "huangheyilijingui",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 288,
+    "sheet_row": 95,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "huangming": {
+    "body_length_mm": {
+      "max_mm": 14.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–14"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "huangyeming",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 14.0,
+    "min_mm": 10.0,
+    "name_zh": "黄螟",
+    "patch_average_px": {
+      "height_px": 533,
+      "raw": "505×533",
+      "width_px": 505
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "huangming",
+    "regions": [
+      "西南（与二点螟/条螟/桑螟等）"
+    ],
+    "regions_raw": "西南（与二点螟/条螟/桑螟等）",
+    "remark": null,
+    "sample_count": 40,
+    "sheet_row": 35,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "huangtutaie": {
+    "body_length_mm": {
+      "max_mm": 14.0,
+      "min_mm": 11.0,
+      "note": null,
+      "raw": "11–14"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "huangtutaie",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 14.0,
+    "min_mm": 11.0,
+    "name_zh": "黄土苔蛾-北京",
+    "patch_average_px": {
+      "height_px": 417,
+      "raw": "618×417",
+      "width_px": 618
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "huangtutaie",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 237,
+    "sheet_row": 96,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "huangyee": {
+    "body_length_mm": {
+      "max_mm": 21.0,
+      "min_mm": 17.0,
+      "note": null,
+      "raw": "17–21"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "huangyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 21.0,
+    "min_mm": 17.0,
+    "name_zh": "荒夜蛾",
+    "patch_average_px": {
+      "height_px": 846,
+      "raw": "858×846",
+      "width_px": 858
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "huangyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 300,
+    "sheet_row": 97,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "huangzuliechun": {
+    "body_length_mm": {
+      "max_mm": 16.0,
+      "min_mm": 13.0,
+      "note": null,
+      "raw": "13–16"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "huangzuliechun",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 16.0,
+    "min_mm": 13.0,
+    "name_zh": "黄足猎蝽",
+    "patch_average_px": {
+      "height_px": 582,
+      "raw": "618×582",
+      "width_px": 618
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "huangzuliechun",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 243,
+    "sheet_row": 98,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "jinguizi": {
+    "body_length_mm": {
+      "max_mm": 30.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–30"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 30.0,
+    "min_mm": 15.0,
+    "name_zh": "金龟子",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "jinguizi",
+    "regions": [
+      "西南"
+    ],
+    "regions_raw": "西南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 36,
+    "size_label": "大虫",
+    "training_plan_reserve_row": false
+  },
+  "jinzhenchong": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–20"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "goujinzhenchong",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 20.0,
+    "min_mm": 10.0,
+    "name_zh": "金针虫",
+    "patch_average_px": {
+      "height_px": 442,
+      "raw": "527×442",
+      "width_px": 527
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "jinzhenchong",
+    "regions": [
+      "西南"
+    ],
+    "regions_raw": "西南",
+    "remark": null,
+    "sample_count": 620,
+    "sheet_row": 37,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "kuanjingyee": {
+    "body_length_mm": {
+      "max_mm": 21.0,
+      "min_mm": 17.0,
+      "note": null,
+      "raw": "17–21"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "kuanjingyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 21.0,
+    "min_mm": 17.0,
+    "name_zh": "宽胫夜蛾",
+    "patch_average_px": {
+      "height_px": 657,
+      "raw": "640×657",
+      "width_px": 640
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "kuanjingyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 132,
+    "sheet_row": 99,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "laoshinianchong": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–20"
+    },
+    "category": "国家一类害虫",
+    "data_dirs_raw": "laoshinianchong",
+    "deliver_biong": true,
+    "group": "大虫一级害虫",
+    "max_mm": 20.0,
+    "min_mm": 15.0,
+    "name_zh": "劳氏粘虫",
+    "patch_average_px": {
+      "height_px": 600,
+      "raw": "654×600",
+      "width_px": 654
+    },
+    "pest_level": {
+      "group_zh": "大虫一级害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "国家一类害虫",
+      "national_list_class": 1
+    },
+    "pinyin": "laoshinianchong",
+    "regions": [
+      "全国"
+    ],
+    "regions_raw": "全国",
+    "remark": null,
+    "sample_count": 175,
+    "sheet_row": 7,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "lianzhiguanya": {
+    "body_length_mm": {
+      "max_mm": 2.5,
+      "min_mm": 1.5,
+      "note": null,
+      "raw": "1.5–2.5"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 2.5,
+    "min_mm": 1.5,
+    "name_zh": "莲缢管蚜",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "lianzhiguanya",
+    "regions": [
+      "华中"
+    ],
+    "regions_raw": "华中",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 62,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "limushi": {
+    "body_length_mm": {
+      "max_mm": 3.0,
+      "min_mm": 2.0,
+      "note": null,
+      "raw": "2–3"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 3.0,
+    "min_mm": 2.0,
+    "name_zh": "梨木虱",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "limushi",
+    "regions": [
+      "华东",
+      "西北"
+    ],
+    "regions_raw": "华东、西北",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 55,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "lixiaoshixinchong": {
+    "body_length_mm": {
+      "max_mm": 9.0,
+      "min_mm": 7.0,
+      "note": null,
+      "raw": "7–9"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 9.0,
+    "min_mm": 7.0,
+    "name_zh": "梨小食心虫",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "lixiaoshixinchong",
+    "regions": [
+      "华北",
+      "西南"
+    ],
+    "regions_raw": "华北、西南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 38,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "lizhichun": {
+    "body_length_mm": {
+      "max_mm": 16.0,
+      "min_mm": 12.0,
+      "note": null,
+      "raw": "12–16"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 16.0,
+    "min_mm": 12.0,
+    "name_zh": "荔枝蝽",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "lizhichun",
+    "regions": [
+      "华南"
+    ],
+    "regions_raw": "华南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 66,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "lizhidizhuchong": {
+    "body_length_mm": {
+      "max_mm": 8.0,
+      "min_mm": 6.0,
+      "note": null,
+      "raw": "6–8"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 8.0,
+    "min_mm": 6.0,
+    "name_zh": "荔枝蒂蛀虫",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "lizhidizhuchong",
+    "regions": [
+      "华南"
+    ],
+    "regions_raw": "华南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 67,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "lvmangchun": {
+    "body_length_mm": {
+      "max_mm": 7.0,
+      "min_mm": 5.0,
+      "note": null,
+      "raw": "5–7"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "daolvchun",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 7.0,
+    "min_mm": 5.0,
+    "name_zh": "绿盲蝽",
+    "patch_average_px": {
+      "height_px": 460,
+      "raw": "439×460",
+      "width_px": 439
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "lvmangchun",
+    "regions": [
+      "华北",
+      "西南",
+      "西北"
+    ],
+    "regions_raw": "华北、西南、西北",
+    "remark": null,
+    "sample_count": 54,
+    "sheet_row": 39,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "maimianyee": {
+    "body_length_mm": {
+      "max_mm": 17.0,
+      "min_mm": 13.0,
+      "note": null,
+      "raw": "13–17"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "maimianyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 17.0,
+    "min_mm": 13.0,
+    "name_zh": "麦免夜蛾",
+    "patch_average_px": {
+      "height_px": 630,
+      "raw": "636×630",
+      "width_px": 636
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "maimianyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 571,
+    "sheet_row": 100,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "maimuyeming": {
+    "body_length_mm": {
+      "max_mm": 14.0,
+      "min_mm": 11.0,
+      "note": null,
+      "raw": "11–14"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "maimuyeming",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 14.0,
+    "min_mm": 11.0,
+    "name_zh": "麦牧野螟",
+    "patch_average_px": {
+      "height_px": 471,
+      "raw": "495×471",
+      "width_px": 495
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "maimuyeming",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 464,
+    "sheet_row": 101,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "maisuiyee": {
+    "body_length_mm": {
+      "max_mm": 18.0,
+      "min_mm": 14.0,
+      "note": null,
+      "raw": "14–18"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "maisuiyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 18.0,
+    "min_mm": 14.0,
+    "name_zh": "麦穗夜蛾",
+    "patch_average_px": {
+      "height_px": 698,
+      "raw": "709×698",
+      "width_px": 709
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "maisuiyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 326,
+    "sheet_row": 102,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "malingshujiachong": {
+    "body_length_mm": {
+      "max_mm": 12.0,
+      "min_mm": 9.0,
+      "note": null,
+      "raw": "9–12"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "malingshusaijingui",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 12.0,
+    "min_mm": 9.0,
+    "name_zh": "马铃薯甲虫",
+    "patch_average_px": {
+      "height_px": 660,
+      "raw": "698×660",
+      "width_px": 698
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "malingshujiachong",
+    "regions": [
+      "华北",
+      "东北"
+    ],
+    "regions_raw": "华北、东北",
+    "remark": null,
+    "sample_count": 376,
+    "sheet_row": 40,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "meiguijinyee": {
+    "body_length_mm": {
+      "max_mm": 21.0,
+      "min_mm": 17.0,
+      "note": null,
+      "raw": "17–21"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "meiguijinyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 21.0,
+    "min_mm": 17.0,
+    "name_zh": "玫瑰巾夜蛾",
+    "patch_average_px": {
+      "height_px": 685,
+      "raw": "727×685",
+      "width_px": 727
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "meiguijinyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 74,
+    "sheet_row": 103,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "mianjima": {
+    "body_length_mm": {
+      "max_mm": 1.2,
+      "min_mm": 0.5,
+      "note": null,
+      "raw": "0.5–1.2"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 1.2,
+    "min_mm": 0.5,
+    "name_zh": "棉蓟马",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "mianjima",
+    "regions": [
+      "西北"
+    ],
+    "regions_raw": "西北",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 75,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "mianlingchong": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–20"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "mianlingchong",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 20.0,
+    "min_mm": 15.0,
+    "name_zh": "棉铃虫",
+    "patch_average_px": {
+      "height_px": 599,
+      "raw": "632×599",
+      "width_px": 632
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "mianlingchong",
+    "regions": [
+      "华北",
+      "华中",
+      "西南",
+      "西北"
+    ],
+    "regions_raw": "华北、华中、西南、西北",
+    "remark": null,
+    "sample_count": 333,
+    "sheet_row": 16,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "mianya": {
+    "body_length_mm": {
+      "max_mm": 2.5,
+      "min_mm": 1.5,
+      "note": null,
+      "raw": "1.5–2.5"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 2.5,
+    "min_mm": 1.5,
+    "name_zh": "棉蚜",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "mianya",
+    "regions": [
+      "华中",
+      "西北"
+    ],
+    "regions_raw": "华中、西北",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 56,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "mianyeman": {
+    "body_length_mm": {
+      "max_mm": 0.3,
+      "min_mm": 0.2,
+      "note": "表格为螨成体尺度(约 mm)，非鳞翅目成虫体长",
+      "raw": "成螨约0.2–0.3"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 0.3,
+    "min_mm": 0.2,
+    "name_zh": "棉叶螨",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "mianyeman",
+    "regions": [
+      "华中",
+      "西北"
+    ],
+    "regions_raw": "华中、西北",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 57,
+    "size_label": "螨",
+    "training_plan_reserve_row": false
+  },
+  "moyee": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 16.0,
+      "note": null,
+      "raw": "16–20"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "moyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 20.0,
+    "min_mm": 16.0,
+    "name_zh": "陌夜蛾",
+    "patch_average_px": {
+      "height_px": 802,
+      "raw": "862×802",
+      "width_px": 862
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "moyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 308,
+    "sheet_row": 104,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "muxumangchun": {
+    "body_length_mm": {
+      "max_mm": 8.0,
+      "min_mm": 6.0,
+      "note": null,
+      "raw": "6–8"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 8.0,
+    "min_mm": 6.0,
+    "name_zh": "苜蓿盲蝽",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "muxumangchun",
+    "regions": [
+      "华北",
+      "西南",
+      "西北"
+    ],
+    "regions_raw": "华北、西南、西北",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 41,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "niaozuihuyee": {
+    "body_length_mm": {
+      "max_mm": 30.0,
+      "min_mm": 22.0,
+      "note": null,
+      "raw": "22–30"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "niaozuihuyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 30.0,
+    "min_mm": 22.0,
+    "name_zh": "鸟嘴壶夜蛾",
+    "patch_average_px": {
+      "height_px": 823,
+      "raw": "869×823",
+      "width_px": 869
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "niaozuihuyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 162,
+    "sheet_row": 105,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "pingguodue": {
+    "body_length_mm": {
+      "max_mm": 10.0,
+      "min_mm": 8.0,
+      "note": null,
+      "raw": "8–10"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 10.0,
+    "min_mm": 8.0,
+    "name_zh": "苹果蠹蛾",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "pingguodue",
+    "regions": [
+      "华北",
+      "西北"
+    ],
+    "regions_raw": "华北、西北",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 42,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "pingshaoyingyee": {
+    "body_length_mm": {
+      "max_mm": 21.0,
+      "min_mm": 17.0,
+      "note": null,
+      "raw": "17–21"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "pingshaoyingyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 21.0,
+    "min_mm": 17.0,
+    "name_zh": "苹梢鹰夜蛾",
+    "patch_average_px": {
+      "height_px": 621,
+      "raw": "638×621",
+      "width_px": 638
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "pingshaoyingyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 216,
+    "sheet_row": 106,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "pingzhangzhoue": {
+    "body_length_mm": {
+      "max_mm": 30.0,
+      "min_mm": 22.0,
+      "note": null,
+      "raw": "22–30"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "pingzhangzhoue",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 30.0,
+    "min_mm": 22.0,
+    "name_zh": "苹掌舟蛾",
+    "patch_average_px": {
+      "height_px": 688,
+      "raw": "863×688",
+      "width_px": 863
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "pingzhangzhoue",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 360,
+    "sheet_row": 107,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "putaobanxichan": {
+    "body_length_mm": {
+      "max_mm": 4.0,
+      "min_mm": 3.0,
+      "note": null,
+      "raw": "3–4"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 4.0,
+    "min_mm": 3.0,
+    "name_zh": "葡萄斑叶蝉",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "putaobanxichan",
+    "regions": [
+      "西北"
+    ],
+    "regions_raw": "西北",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 72,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "qijiaoming": {
+    "body_length_mm": {
+      "max_mm": 12.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–12"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "qijiaoming",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 12.0,
+    "min_mm": 10.0,
+    "name_zh": "歧角螟",
+    "patch_average_px": {
+      "height_px": 342,
+      "raw": "410×342",
+      "width_px": 410
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "qijiaoming",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 8,
+    "sheet_row": 108,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "qiweiyee": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 16.0,
+      "note": null,
+      "raw": "16–20"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "qiweiyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 20.0,
+    "min_mm": 16.0,
+    "name_zh": "漆尾夜蛾",
+    "patch_average_px": {
+      "height_px": 667,
+      "raw": "634×667",
+      "width_px": 634
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "qiweiyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 1000,
+    "sheet_row": 109,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "quewentiane": {
+    "body_length_mm": {
+      "max_mm": 46.0,
+      "min_mm": 38.0,
+      "note": null,
+      "raw": "38–46"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "quewentiane",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 46.0,
+    "min_mm": 38.0,
+    "name_zh": "雀纹天蛾",
+    "patch_average_px": {
+      "height_px": 1336,
+      "raw": "1354×1336",
+      "width_px": 1354
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "quewentiane",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 30,
+    "sheet_row": 110,
+    "size_label": "大虫",
+    "training_plan_reserve_row": false
+  },
+  "sangming": {
+    "body_length_mm": {
+      "max_mm": 14.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–14"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "shuiming",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 14.0,
+    "min_mm": 10.0,
+    "name_zh": "桑螟",
+    "patch_average_px": {
+      "height_px": 296,
+      "raw": "299×296",
+      "width_px": 299
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "sangming",
+    "regions": [
+      "西南（与二点螟/条螟/黄螟等）"
+    ],
+    "regions_raw": "西南（与二点螟/条螟/黄螟等）",
+    "remark": null,
+    "sample_count": 352,
+    "sheet_row": 43,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "sanhuaming": {
+    "body_length_mm": {
+      "max_mm": 14.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–14"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "sanhuaming",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 14.0,
+    "min_mm": 10.0,
+    "name_zh": "三化螟",
+    "patch_average_px": {
+      "height_px": 403,
+      "raw": "388×403",
+      "width_px": 388
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "sanhuaming",
+    "regions": [
+      "西南"
+    ],
+    "regions_raw": "西南",
+    "remark": null,
+    "sample_count": 72,
+    "sheet_row": 23,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "shanguangmeidenge": {
+    "body_length_mm": {
+      "max_mm": 28.0,
+      "min_mm": 20.0,
+      "note": null,
+      "raw": "20–28"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "shanguangmeidenge",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 28.0,
+    "min_mm": 20.0,
+    "name_zh": "闪光玫灯蛾",
+    "patch_average_px": {
+      "height_px": 999,
+      "raw": "1027×999",
+      "width_px": 1027
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "shanguangmeidenge",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 40,
+    "sheet_row": 111,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "shucaijima": {
+    "body_length_mm": {
+      "max_mm": 2.0,
+      "min_mm": 1.0,
+      "note": null,
+      "raw": "1–2"
+    },
+    "category": "国家一类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 2.0,
+    "min_mm": 1.0,
+    "name_zh": "蔬菜蓟马",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "国家一类害虫",
+      "national_list_class": 1
+    },
+    "pinyin": "shucaijima",
+    "regions": [
+      "全国"
+    ],
+    "regions_raw": "全国",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 53,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "taoxiaoshixinchong": {
+    "body_length_mm": {
+      "max_mm": 8.0,
+      "min_mm": 6.0,
+      "note": null,
+      "raw": "6–8"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 8.0,
+    "min_mm": 6.0,
+    "name_zh": "桃小食心虫",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "taoxiaoshixinchong",
+    "regions": [
+      "华北",
+      "西南"
+    ],
+    "regions_raw": "华北、西南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 44,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "taozhuming": {
+    "body_length_mm": {
+      "max_mm": 12.0,
+      "min_mm": 9.0,
+      "note": null,
+      "raw": "9–12"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "taozhuming",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 12.0,
+    "min_mm": 9.0,
+    "name_zh": "桃蛀螟",
+    "patch_average_px": {
+      "height_px": 410,
+      "raw": "379×410",
+      "width_px": 379
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "taozhuming",
+    "regions": [
+      "西南"
+    ],
+    "regions_raw": "西南",
+    "remark": null,
+    "sample_count": 172,
+    "sheet_row": 19,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "tiancaibaidaiyeming": {
+    "body_length_mm": {
+      "max_mm": 10.0,
+      "min_mm": 8.0,
+      "note": null,
+      "raw": "8–10"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "tiancaibaidaiyeming",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 10.0,
+    "min_mm": 8.0,
+    "name_zh": "甜菜白带野螟",
+    "patch_average_px": {
+      "height_px": 432,
+      "raw": "476×432",
+      "width_px": 476
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "tiancaibaidaiyeming",
+    "regions": [
+      "华北"
+    ],
+    "regions_raw": "华北",
+    "remark": null,
+    "sample_count": 514,
+    "sheet_row": 13,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "tiancaiyee": {
+    "body_length_mm": {
+      "max_mm": 14.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–14"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "tiancaiyee",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 14.0,
+    "min_mm": 10.0,
+    "name_zh": "甜菜夜蛾",
+    "patch_average_px": {
+      "height_px": 473,
+      "raw": "343×473",
+      "width_px": 343
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "tiancaiyee",
+    "regions": [
+      "华北",
+      "西南",
+      "西北"
+    ],
+    "regions_raw": "华北、西南、西北",
+    "remark": null,
+    "sample_count": 16,
+    "sheet_row": 24,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "tiaoming": {
+    "body_length_mm": {
+      "max_mm": 14.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–14"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "zitiaochie",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 14.0,
+    "min_mm": 10.0,
+    "name_zh": "条螟",
+    "patch_average_px": {
+      "height_px": 505,
+      "raw": "517×505",
+      "width_px": 517
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "tiaoming",
+    "regions": [
+      "西南（与二点螟/桑螟/黄螟等）"
+    ],
+    "regions_raw": "西南（与二点螟/桑螟/黄螟等）",
+    "remark": null,
+    "sample_count": 116,
+    "sheet_row": 45,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "tonglvyilijingui": {
+    "body_length_mm": {
+      "max_mm": 19.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–19"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "tonglvyilijingui",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 19.0,
+    "min_mm": 15.0,
+    "name_zh": "铜绿异丽金龟",
+    "patch_average_px": {
+      "height_px": 558,
+      "raw": "593×558",
+      "width_px": 593
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "tonglvyilijingui",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 291,
+    "sheet_row": 112,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "tubeibanhongchun": {
+    "body_length_mm": {
+      "max_mm": 13.0,
+      "min_mm": 11.0,
+      "note": null,
+      "raw": "11–13"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "tubeibanhongchun",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 13.0,
+    "min_mm": 11.0,
+    "name_zh": "突背斑红蝽",
+    "patch_average_px": {
+      "height_px": 461,
+      "raw": "461×461",
+      "width_px": 461
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "tubeibanhongchun",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 120,
+    "sheet_row": 113,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "wenshibaifenshi": {
+    "body_length_mm": {
+      "max_mm": 1.2,
+      "min_mm": 0.8,
+      "note": null,
+      "raw": "0.8–1.2"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 1.2,
+    "min_mm": 0.8,
+    "name_zh": "温室白粉虱",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "wenshibaifenshi",
+    "regions": [
+      "华东"
+    ],
+    "regions_raw": "华东",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 59,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "xianbanhongchun": {
+    "body_length_mm": {
+      "max_mm": 12.0,
+      "min_mm": 10.0,
+      "note": null,
+      "raw": "10–12"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "xianbanhongchun",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 12.0,
+    "min_mm": 10.0,
+    "name_zh": "显斑红蝽",
+    "patch_average_px": {
+      "height_px": 530,
+      "raw": "523×530",
+      "width_px": 523
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "xianbanhongchun",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 30,
+    "sheet_row": 114,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "xiangjiaonongdie": {
+    "body_length_mm": {
+      "max_mm": 30.0,
+      "min_mm": 20.0,
+      "note": "(翅展类)",
+      "raw": "20–30(翅展类)"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 30.0,
+    "min_mm": 20.0,
+    "name_zh": "香蕉弄蝶",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "xiangjiaonongdie",
+    "regions": [
+      "华南"
+    ],
+    "regions_raw": "华南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 64,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "xiangjiaoxiangjia": {
+    "body_length_mm": {
+      "max_mm": 12.0,
+      "min_mm": 8.0,
+      "note": null,
+      "raw": "8–12"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 12.0,
+    "min_mm": 8.0,
+    "name_zh": "香蕉象甲",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "xiangjiaoxiangjia",
+    "regions": [
+      "华南"
+    ],
+    "regions_raw": "华南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 65,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "xianweiyee": {
+    "body_length_mm": {
+      "max_mm": 19.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–19"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "xianweiyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 19.0,
+    "min_mm": 15.0,
+    "name_zh": "线委夜蛾",
+    "patch_average_px": {
+      "height_px": 493,
+      "raw": "482×493",
+      "width_px": 482
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "xianweiyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 86,
+    "sheet_row": 115,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "xiaocaie": {
+    "body_length_mm": {
+      "max_mm": 8.0,
+      "min_mm": 6.0,
+      "note": null,
+      "raw": "6–8"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "xiaocaie-bei;xiaocaie-fu",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 8.0,
+    "min_mm": 6.0,
+    "name_zh": "小菜蛾",
+    "patch_average_px": {
+      "height_px": 207,
+      "raw": "216×207",
+      "width_px": 216
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "xiaocaie",
+    "regions": [
+      "华北",
+      "华东",
+      "西南"
+    ],
+    "regions_raw": "华北、华东、西南",
+    "remark": null,
+    "sample_count": 982,
+    "sheet_row": 11,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "xiaodilaohu": {
+    "body_length_mm": {
+      "max_mm": 23.0,
+      "min_mm": 18.0,
+      "note": null,
+      "raw": "18–23"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "xiaodilaohu-bei;xiaodilaohu-fu",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 23.0,
+    "min_mm": 18.0,
+    "name_zh": "小地老虎",
+    "patch_average_px": {
+      "height_px": 714,
+      "raw": "754×714",
+      "width_px": 754
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "xiaodilaohu",
+    "regions": [
+      "华北",
+      "西南",
+      "西北"
+    ],
+    "regions_raw": "华北、西南、西北",
+    "remark": null,
+    "sample_count": 374,
+    "sheet_row": 15,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "xiaoguantouxishuai": {
+    "body_length_mm": {
+      "max_mm": 18.0,
+      "min_mm": 14.0,
+      "note": null,
+      "raw": "14–18"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "xiaoguantouxishuai",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 18.0,
+    "min_mm": 14.0,
+    "name_zh": "小棺头蟋蟀",
+    "patch_average_px": {
+      "height_px": 465,
+      "raw": "543×465",
+      "width_px": 543
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "xiaoguantouxishuai",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 457,
+    "sheet_row": 116,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "xiaomaiaichong": {
+    "body_length_mm": {
+      "max_mm": 2.0,
+      "min_mm": 1.0,
+      "note": null,
+      "raw": "1–2"
+    },
+    "category": "国家一类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 2.0,
+    "min_mm": 1.0,
+    "name_zh": "小麦蚜虫",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "国家一类害虫",
+      "national_list_class": 1
+    },
+    "pinyin": "xiaomaiaichong",
+    "regions": [
+      "全国"
+    ],
+    "regions_raw": "全国",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 52,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "xiaomaixijianchong": {
+    "body_length_mm": {
+      "max_mm": 3.0,
+      "min_mm": 2.0,
+      "note": null,
+      "raw": "2–3"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 3.0,
+    "min_mm": 2.0,
+    "name_zh": "小麦吸浆虫",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "xiaomaixijianchong",
+    "regions": [
+      "西北"
+    ],
+    "regions_raw": "西北",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 71,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "xiaoshie": {
+    "body_length_mm": {
+      "max_mm": 10.0,
+      "min_mm": 6.0,
+      "note": null,
+      "raw": "6–10"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "xiaoshie",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 10.0,
+    "min_mm": 6.0,
+    "name_zh": "小石蛾",
+    "patch_average_px": {
+      "height_px": 245,
+      "raw": "276×245",
+      "width_px": 276
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "xiaoshie",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 154,
+    "sheet_row": 117,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "xiaoyunbansaijingui": {
+    "body_length_mm": {
+      "max_mm": 16.0,
+      "min_mm": 12.0,
+      "note": null,
+      "raw": "12–16"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "xiaoyunbansaijingui",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 16.0,
+    "min_mm": 12.0,
+    "name_zh": "小云斑鳃金龟",
+    "patch_average_px": {
+      "height_px": 919,
+      "raw": "910×919",
+      "width_px": 910
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "xiaoyunbansaijingui",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 150,
+    "sheet_row": 118,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "xiewenyee": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 18.0,
+      "note": null,
+      "raw": "18–20"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "xiewenyee",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 20.0,
+    "min_mm": 18.0,
+    "name_zh": "斜纹夜蛾",
+    "patch_average_px": {
+      "height_px": 605,
+      "raw": "638×605",
+      "width_px": 638
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "xiewenyee",
+    "regions": [
+      "西南"
+    ],
+    "regions_raw": "西南",
+    "remark": null,
+    "sample_count": 756,
+    "sheet_row": 12,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "xiumuyee": {
+    "body_length_mm": {
+      "max_mm": 19.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–19"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "xiumuyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 19.0,
+    "min_mm": 15.0,
+    "name_zh": "朽木夜蛾",
+    "patch_average_px": {
+      "height_px": 528,
+      "raw": "535×528",
+      "width_px": 535
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "xiumuyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 80,
+    "sheet_row": 119,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "xuanqiyee": {
+    "body_length_mm": {
+      "max_mm": 21.0,
+      "min_mm": 17.0,
+      "note": null,
+      "raw": "17–21"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "xuanqiyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 21.0,
+    "min_mm": 17.0,
+    "name_zh": "旋歧夜蛾",
+    "patch_average_px": {
+      "height_px": 614,
+      "raw": "626×614",
+      "width_px": 626
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "xuanqiyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 173,
+    "sheet_row": 120,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "yachong": {
+    "body_length_mm": {
+      "max_mm": 3.0,
+      "min_mm": 1.0,
+      "note": null,
+      "raw": "1–3"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": null,
+    "group": "待选",
+    "max_mm": 3.0,
+    "min_mm": 1.0,
+    "name_zh": "蚜虫",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "待选",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "yachong",
+    "regions": [
+      "华中",
+      "西南"
+    ],
+    "regions_raw": "华中、西南",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 51,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "yanfenshi": {
+    "body_length_mm": {
+      "max_mm": 1.2,
+      "min_mm": 0.8,
+      "note": null,
+      "raw": "0.8–1.2"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": null,
+    "deliver_biong": false,
+    "group": "其他害虫",
+    "max_mm": 1.2,
+    "min_mm": 0.8,
+    "name_zh": "烟粉虱",
+    "patch_average_px": {
+      "height_px": null,
+      "raw": null,
+      "width_px": null
+    },
+    "pest_level": {
+      "group_zh": "其他害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "yanfenshi",
+    "regions": [
+      "华东"
+    ],
+    "regions_raw": "华东",
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 58,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "yanqingchong": {
+    "body_length_mm": {
+      "max_mm": 18.0,
+      "min_mm": 14.0,
+      "note": null,
+      "raw": "14–18"
+    },
+    "category": "二类害虫",
+    "data_dirs_raw": "yanqingchong",
+    "deliver_biong": true,
+    "group": "大虫二类害虫",
+    "max_mm": 18.0,
+    "min_mm": 14.0,
+    "name_zh": "烟青虫",
+    "patch_average_px": {
+      "height_px": 571,
+      "raw": "554×571",
+      "width_px": 554
+    },
+    "pest_level": {
+      "group_zh": "大虫二类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "二类害虫",
+      "national_list_class": 2
+    },
+    "pinyin": "yanqingchong",
+    "regions": [
+      "西南"
+    ],
+    "regions_raw": "西南",
+    "remark": null,
+    "sample_count": 1173,
+    "sheet_row": 10,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "yeesoujifeng": {
+    "body_length_mm": {
+      "max_mm": 15.0,
+      "min_mm": 8.0,
+      "note": null,
+      "raw": "8–15"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "yeesoujifeng",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 15.0,
+    "min_mm": 8.0,
+    "name_zh": "夜蛾瘦姬蜂",
+    "patch_average_px": {
+      "height_px": 724,
+      "raw": "716×724",
+      "width_px": 716
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "yeesoujifeng",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 336,
+    "sheet_row": 121,
+    "size_label": "小虫",
+    "training_plan_reserve_row": false
+  },
+  "yibeilue": {
+    "body_length_mm": {
+      "max_mm": 18.0,
+      "min_mm": 14.0,
+      "note": null,
+      "raw": "14–18"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "yibeilue",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 18.0,
+    "min_mm": 14.0,
+    "name_zh": "伊贝鹿蛾",
+    "patch_average_px": {
+      "height_px": 591,
+      "raw": "571×591",
+      "width_px": 571
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "yibeilue",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 162,
+    "sheet_row": 122,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "yindingyee": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 16.0,
+      "note": null,
+      "raw": "16–20"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "yindingyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 20.0,
+    "min_mm": 16.0,
+    "name_zh": "瘦银锭夜蛾",
+    "patch_average_px": {
+      "height_px": 469,
+      "raw": "600×469",
+      "width_px": 600
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "yindingyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 200,
+    "sheet_row": 123,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "yindingyee-ba": {
+    "body_length_mm": {
+      "max_mm": 20.0,
+      "min_mm": 16.0,
+      "note": null,
+      "raw": "16–20"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "yindingyee-ba",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 20.0,
+    "min_mm": 16.0,
+    "name_zh": "（未命名）yindingyee-ba",
+    "patch_average_px": {
+      "height_px": 652,
+      "raw": "456×652",
+      "width_px": 456
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "yindingyee-ba",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 167,
+    "sheet_row": 124,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "yinwenyee": {
+    "body_length_mm": {
+      "max_mm": 18.0,
+      "min_mm": 15.0,
+      "note": null,
+      "raw": "15–18"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "yinwenyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 18.0,
+    "min_mm": 15.0,
+    "name_zh": "银纹夜蛾",
+    "patch_average_px": {
+      "height_px": 615,
+      "raw": "653×615",
+      "width_px": 653
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "yinwenyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 205,
+    "sheet_row": 125,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "yiqieyee": {
+    "body_length_mm": {
+      "max_mm": 21.0,
+      "min_mm": 17.0,
+      "note": null,
+      "raw": "17–21"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "yiqieyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 21.0,
+    "min_mm": 17.0,
+    "name_zh": "异切夜蛾",
+    "patch_average_px": {
+      "height_px": 565,
+      "raw": "587×565",
+      "width_px": 587
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "yiqieyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 348,
+    "sheet_row": 126,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "yumiming": {
+    "body_length_mm": {
+      "max_mm": 15.0,
+      "min_mm": 12.0,
+      "note": null,
+      "raw": "12–15"
+    },
+    "category": "国家一类害虫",
+    "data_dirs_raw": "yumiming",
+    "deliver_biong": true,
+    "group": "大虫一类害虫",
+    "max_mm": 15.0,
+    "min_mm": 12.0,
+    "name_zh": "玉米螟",
+    "patch_average_px": {
+      "height_px": 488,
+      "raw": "468×488",
+      "width_px": 468
+    },
+    "pest_level": {
+      "group_zh": "大虫一类害虫",
+      "is_other_dataset_class": false,
+      "label_zh": "国家一类害虫",
+      "national_list_class": 1
+    },
+    "pinyin": "yumiming",
+    "regions": [
+      "全国"
+    ],
+    "regions_raw": "全国",
+    "remark": null,
+    "sample_count": 967,
+    "sheet_row": 2,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "zhanmoyee": {
+    "body_length_mm": {
+      "max_mm": 21.0,
+      "min_mm": 17.0,
+      "note": null,
+      "raw": "17–21"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "zhanmoyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 21.0,
+    "min_mm": 17.0,
+    "name_zh": "粘膜夜蛾",
+    "patch_average_px": {
+      "height_px": 628,
+      "raw": "642×628",
+      "width_px": 642
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "zhanmoyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 644,
+    "sheet_row": 127,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "zhonghuaxiaobianxijingui": {
+    "body_length_mm": {
+      "max_mm": 30.0,
+      "min_mm": 22.0,
+      "note": null,
+      "raw": "22–30"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "zhonghuaxiaobianxijingui",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 30.0,
+    "min_mm": 22.0,
+    "name_zh": "中华晓扁犀金龟",
+    "patch_average_px": {
+      "height_px": 873,
+      "raw": "900×873",
+      "width_px": 900
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "zhonghuaxiaobianxijingui",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 240,
+    "sheet_row": 128,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
+  "zhongjinhuyee": {
+    "body_length_mm": {
+      "max_mm": 21.0,
+      "min_mm": 17.0,
+      "note": null,
+      "raw": "17–21"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "zhongjinhuyee",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 21.0,
+    "min_mm": 17.0,
+    "name_zh": "中金弧夜蛾",
+    "patch_average_px": {
+      "height_px": 778,
+      "raw": "804×778",
+      "width_px": 804
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "zhongjinhuyee",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 258,
+    "sheet_row": 129,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  }
+}

@@ -59,6 +59,8 @@ def _save_image_and_xml(
     predict_debug: bool,
     label_mode: str,
     val_xml_mode: bool,
+    draw_boxes: bool,
+    draw_center_point_and_label: bool,
     gts: list[dict] | None,
     matches: list[tuple[int, int, float]] | None,
     matched_p: set[int] | None,
@@ -67,39 +69,105 @@ def _save_image_and_xml(
     os.makedirs(out_dir, exist_ok=True)
     h_img, w_img = image_bgr.shape[:2]
 
-    if val_xml_mode and gts is not None and matches is not None and matched_p is not None:
-        img_draw = draw_main_output_image(
-            image_bgr,
-            all_final_rows,
-            clip_size,
-            overlap_size,
-            predict_debug,
-            label_mode=label_mode,
-            val_xml_mode=True,
-            results_visible=results_visible,
-            gts=gts,
-            matches=matches,
-            matched_p=matched_p,
-            merge=class_merge_to_groups,
-        )
-    else:
-        img_draw = draw_main_output_image(
-            image_bgr,
-            all_final_rows,
-            clip_size,
-            overlap_size,
-            predict_debug,
-            label_mode=label_mode,
-            val_xml_mode=False,
-            results_visible=results_visible,
-            gts=[],
-            matches=[],
-            matched_p=set(),
-            merge=class_merge_to_groups,
-        )
-
     save_path = os.path.join(out_dir, rel_path.name)
-    cv2.imwrite(save_path, img_draw)
+    need_visual = bool(draw_boxes or draw_center_point_and_label)
+    if not need_visual:
+        # 关闭可视化：不画框/不写文字，但仍然把原图保存到输出目录（覆盖旧画框图）
+        cv2.imwrite(save_path, image_bgr)
+    else:
+        if draw_boxes:
+            if val_xml_mode and gts is not None and matches is not None and matched_p is not None:
+                img_draw = draw_main_output_image(
+                    image_bgr,
+                    all_final_rows,
+                    clip_size,
+                    overlap_size,
+                    predict_debug,
+                    label_mode=label_mode,
+                    val_xml_mode=True,
+                    results_visible=results_visible,
+                    gts=gts,
+                    matches=matches,
+                    matched_p=matched_p,
+                    merge=class_merge_to_groups,
+                )
+            else:
+                img_draw = draw_main_output_image(
+                    image_bgr,
+                    all_final_rows,
+                    clip_size,
+                    overlap_size,
+                    predict_debug,
+                    label_mode=label_mode,
+                    val_xml_mode=False,
+                    results_visible=results_visible,
+                    gts=[],
+                    matches=[],
+                    matched_p=set(),
+                    merge=class_merge_to_groups,
+                )
+        else:
+            # 不画框，但仍需额外画中心点/标签
+            img_draw = image_bgr.copy()
+
+        if draw_center_point_and_label:
+            h_img, w_img = img_draw.shape[:2]
+            for r in results_visible or []:
+                try:
+                    x1 = int(round(float(r.get("x1", 0) or 0)))
+                    y1 = int(round(float(r.get("y1", 0) or 0)))
+                    x2 = int(round(float(r.get("x2", 0) or 0)))
+                    y2 = int(round(float(r.get("y2", 0) or 0)))
+                except Exception:
+                    continue
+                cx = int(round((x1 + x2) / 2))
+                cy = int(round((y1 + y2) / 2))
+                if cx < 0 or cy < 0 or cx >= w_img or cy >= h_img:
+                    continue
+
+                name = str(r.get("cls_name", "") or "").strip()
+                conf_val = r.get("cls_conf", None)
+                if conf_val is None:
+                    conf_val = r.get("conf", 0.0)
+                try:
+                    conf_f = float(conf_val or 0.0)
+                except Exception:
+                    conf_f = 0.0
+                label = f"{name} {conf_f:.2f}".strip()
+
+                cv2.circle(img_draw, (cx, cy), 3, (0, 255, 255), thickness=-1, lineType=cv2.LINE_AA)
+
+                if label:
+                    font = cv2.FONT_HERSHEY_SIMPLEX
+                    font_scale = 0.45
+                    thickness = 1
+                    (tw, th), baseline = cv2.getTextSize(label, font, font_scale, thickness)
+                    tx = int(cx - tw / 2)
+                    ty = int(cy - 6)
+                    tx = max(0, min(tx, w_img - tw - 1))
+                    ty = max(th + baseline + 1, min(ty, h_img - 1))
+                    cv2.putText(
+                        img_draw,
+                        label,
+                        (tx, ty),
+                        font,
+                        font_scale,
+                        (0, 0, 0),
+                        thickness=3,
+                        lineType=cv2.LINE_AA,
+                    )
+                    cv2.putText(
+                        img_draw,
+                        label,
+                        (tx, ty),
+                        font,
+                        font_scale,
+                        (255, 255, 255),
+                        thickness=1,
+                        lineType=cv2.LINE_AA,
+                    )
+
+        cv2.imwrite(save_path, img_draw)
 
     depth = 3 if image_bgr.ndim >= 3 else 1
     xml_name = Path(rel_path.name).stem + ".xml"
@@ -181,6 +249,7 @@ def _print_stat_by_cls(
         "正确率",
         "漏检FN",
         "漏检率",
+        "类错率",
         "多检FP",
         "误报率",
         "总偏差率",
@@ -204,9 +273,13 @@ def _print_stat_by_cls(
         report_rate = (float(tp_n) / denom_gt) if denom_gt > 0 else 0.0
         acc_rate = (float(tp_n) / denom_matched) if denom_matched > 0 else 0.0
         fp_rate = (float(fp_n) / denom_pred) if denom_pred > 0 else 0.0
-        # 按类别口径：类型错会导致该 GT 类别未被正确识别，计入漏检
-        miss_rate = (float(fn_n + ce_n) / denom_gt) if denom_gt > 0 else 0.0
-        total_dev_rate = miss_rate + fp_rate
+        # 漏检率：仅「几何上无任何匹配框」的 GT 占比（与类型错互斥，不去重相加）
+        miss_fn_rate = (float(fn_n) / denom_gt) if denom_gt > 0 else 0.0
+        # 类错率：有框但分错（相对标注数）
+        cls_err_rate = (float(ce_n) / denom_gt) if denom_gt > 0 else 0.0
+        # 召回缺口(相对标注) = 漏检 + 类型错，与误报率分母不同；总偏差率取 max 避免简单相加超过 100%
+        recall_gap = (float(fn_n + ce_n) / denom_gt) if denom_gt > 0 else 0.0
+        total_dev_rate = max(recall_gap, fp_rate)
 
         row = [
             str(cls_name),
@@ -217,7 +290,8 @@ def _print_stat_by_cls(
             str(ce_n),
             f"{acc_rate*100:.2f}%",
             str(fn_n),
-            f"{miss_rate*100:.2f}%",
+            f"{miss_fn_rate*100:.2f}%",
+            f"{cls_err_rate*100:.2f}%",
             str(fp_n),
             f"{fp_rate*100:.2f}%",
             f"{total_dev_rate*100:.2f}%",
@@ -244,20 +318,35 @@ def _print_stat_by_cls(
         rows_with_sort.sort(key=lambda x: x[0])
     rows = [r for _cls, _dev, _rep, _acc, r in rows_with_sort]
 
+    tg = int(total["gt"])
+    tpr = int(total["pred"])
+    ttp = int(total["tp"])
+    tce = int(total["cls_err"])
+    tfn = int(total["fn"])
+    tfp = int(total["fp"])
+    dgt = float(tg)
+    dpr = float(tpr)
+    sum_miss_fn = (float(tfn) / dgt) if dgt > 0 else 0.0
+    sum_cls_err_r = (float(tce) / dgt) if dgt > 0 else 0.0
+    sum_recall_gap = (float(tfn + tce) / dgt) if dgt > 0 else 0.0
+    sum_fp_r = (float(tfp) / dpr) if dpr > 0 else 0.0
+    sum_total_dev = max(sum_recall_gap, sum_fp_r)
+
     all_lines = [headers] + rows + [
         [
             "合计",
-            str(total["gt"]),
-            str(total["pred"]),
-            str(total["tp"]),
+            str(tg),
+            str(tpr),
+            str(ttp),
             "",
-            str(total["cls_err"]),
+            str(tce),
             "",
-            str(total["fn"]),
-            "",
-            str(total["fp"]),
-            "",
-            "",
+            str(tfn),
+            f"{sum_miss_fn*100:.2f}%",
+            f"{sum_cls_err_r*100:.2f}%",
+            str(tfp),
+            f"{sum_fp_r*100:.2f}%",
+            f"{sum_total_dev*100:.2f}%",
         ]
     ]
     widths = [0] * len(headers)
@@ -274,7 +363,12 @@ def _print_stat_by_cls(
                 out.append(_rjust_disp(it, widths[i]))
         return " | ".join(out)
 
-    sort_hint = "总偏差率升序，其次报出率降序，再次正确率降序" if sort_by_acc else "标注类别名升序"
+    sort_hint = (
+        "总偏差率升序(max(召回缺口,误报率))，其次报出率降序，再次正确率降序；"
+        "漏检率=FN/标注，类错率=类型错/标注，与多检误报分列"
+        if sort_by_acc
+        else "标注类别名升序"
+    )
     print(f"{title}（按{sort_hint}）:")
     print(_fmt_line(headers))
     print("-+-".join("-" * w for w in widths))
@@ -619,7 +713,9 @@ def _export_stat_by_cls_csv(
         "cls_err",
         "acc_rate",
         "fn",
-        "miss_rate",
+        "miss_fn_rate",
+        "cls_err_rate",
+        "recall_gap",
         "fp",
         "fp_rate",
         "total_dev_rate",
@@ -641,9 +737,10 @@ def _export_stat_by_cls_csv(
         report_rate = (float(tp_n) / denom_gt) if denom_gt > 0 else 0.0
         acc_rate = (float(tp_n) / denom_matched) if denom_matched > 0 else 0.0
         fp_rate = (float(fp_n) / denom_pred) if denom_pred > 0 else 0.0
-        # 按类别口径：类型错会导致该 GT 类别未被正确识别，计入漏检
-        miss_rate = (float(fn_n + ce_n) / denom_gt) if denom_gt > 0 else 0.0
-        total_dev_rate = miss_rate + fp_rate
+        miss_fn_rate = (float(fn_n) / denom_gt) if denom_gt > 0 else 0.0
+        cls_err_rate = (float(ce_n) / denom_gt) if denom_gt > 0 else 0.0
+        recall_gap = (float(fn_n + ce_n) / denom_gt) if denom_gt > 0 else 0.0
+        total_dev_rate = max(recall_gap, fp_rate)
 
         row = {
             "class_norm": str(cls_name),
@@ -654,7 +751,9 @@ def _export_stat_by_cls_csv(
             "cls_err": ce_n,
             "acc_rate": round(acc_rate, 6),
             "fn": fn_n,
-            "miss_rate": round(miss_rate, 6),
+            "miss_fn_rate": round(miss_fn_rate, 6),
+            "cls_err_rate": round(cls_err_rate, 6),
+            "recall_gap": round(recall_gap, 6),
             "fp": fp_n,
             "fp_rate": round(fp_rate, 6),
             "total_dev_rate": round(total_dev_rate, 6),
@@ -720,7 +819,9 @@ def _export_group_summary_csv(
         "fp",
         "fn",
         "cls_err",
-        "miss_rate",
+        "miss_fn_rate",
+        "cls_err_rate",
+        "recall_gap",
         "fp_rate",
         "total_dev_rate",
     ]
@@ -735,10 +836,11 @@ def _export_group_summary_csv(
         fp_n = int(s.get("fp", 0))
         denom_gt = float(tp_n + ce_n + fn_n)
         denom_pred = float(tp_n + fp_n)
-        # 分组口径与按类别保持一致：类型错也计入漏检
-        miss_rate = (float(fn_n + ce_n) / denom_gt) if denom_gt > 0 else 0.0
+        miss_fn_rate = (float(fn_n) / denom_gt) if denom_gt > 0 else 0.0
+        cls_err_rate = (float(ce_n) / denom_gt) if denom_gt > 0 else 0.0
+        recall_gap = (float(fn_n + ce_n) / denom_gt) if denom_gt > 0 else 0.0
         fp_rate = (float(fp_n) / denom_pred) if denom_pred > 0 else 0.0
-        total_dev = miss_rate + fp_rate
+        total_dev = max(recall_gap, fp_rate)
         rows.append(
             {
                 "group": group,
@@ -748,7 +850,9 @@ def _export_group_summary_csv(
                 "fp": fp_n,
                 "fn": fn_n,
                 "cls_err": ce_n,
-                "miss_rate": round(miss_rate, 6),
+                "miss_fn_rate": round(miss_fn_rate, 6),
+                "cls_err_rate": round(cls_err_rate, 6),
+                "recall_gap": round(recall_gap, 6),
                 "fp_rate": round(fp_rate, 6),
                 "total_dev_rate": round(total_dev, 6),
             }
@@ -860,9 +964,10 @@ def _export_overall_summary_csv(out_root: str, branch: str, s: dict[str, int]) -
     report_rate = (float(tp + ce) / denom_gt) if denom_gt > 0 else 0.0
     acc_rate = (float(tp) / denom_pred) if denom_pred > 0 else 0.0
     err_rate = (float(fp) / denom_pred) if denom_pred > 0 else 0.0
-    # 汇总口径与按类别保持一致：类型错也计入漏检
-    miss_rate = (float(fn + ce) / denom_gt) if denom_gt > 0 else 0.0
-    total_dev = miss_rate + err_rate
+    miss_fn_rate = (float(fn) / denom_gt) if denom_gt > 0 else 0.0
+    cls_err_rate = (float(ce) / denom_gt) if denom_gt > 0 else 0.0
+    recall_gap = (float(fn + ce) / denom_gt) if denom_gt > 0 else 0.0
+    total_dev = max(recall_gap, err_rate)
     out_path = os.path.join(branch_dir, "overall_summary.csv")
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(
@@ -876,7 +981,9 @@ def _export_overall_summary_csv(out_root: str, branch: str, s: dict[str, int]) -
                 "report_rate",
                 "acc_rate",
                 "err_rate",
-                "miss_rate",
+                "miss_fn_rate",
+                "cls_err_rate",
+                "recall_gap",
                 "total_dev_rate",
             ],
         )
@@ -891,7 +998,9 @@ def _export_overall_summary_csv(out_root: str, branch: str, s: dict[str, int]) -
                 "report_rate": round(report_rate, 6),
                 "acc_rate": round(acc_rate, 6),
                 "err_rate": round(err_rate, 6),
-                "miss_rate": round(miss_rate, 6),
+                "miss_fn_rate": round(miss_fn_rate, 6),
+                "cls_err_rate": round(cls_err_rate, 6),
+                "recall_gap": round(recall_gap, 6),
                 "total_dev_rate": round(total_dev, 6),
             }
         )
@@ -940,17 +1049,25 @@ if __name__ == "__main__":
     enable_small: bool = False
     enable_large: bool = True
     enable_combined: bool = True
+    # 画框开关：默认画框并保存可视化图片；关闭后不画框，仅保存预测 xml
+    enable_draw_boxes: bool = True
+    # 额外标注：打开时，在每个预测矩形框中心绘制点，并绘制“名称+置信度”标签（默认关闭）
+    enable_draw_center_point_and_label: bool = False
+    # detect 灰度检测：打开时，detect 检测阶段将输入图转为灰度（再扩展为 3 通道）进行检测。默认关闭。
+    detect_gray: bool = False
 
     # ----------------------- 类别合并配置（可按需改） -----------------------
     # 大虫：沿用 predict_size_validate.py 内置示例的合并表（也可以在此精简/扩展）
     CLASS_MERGE_TO_GROUPS_LARGE: dict[str, list[str]] | None = {
         # 地老虎组
-        "bazidilaohu": ["bazidilaohu-bei", "bazidilaohu-fu"],
-        "xiaodilaohu": ["xiaodilaohu-bei", "xiaodilaohu-fu"],
-        # 年虫组（举例）
-        "dongfangnianchong": ["dongfangnianchong", "dongfangzhanchong"],
-        "laoshinianchong": ["laoshizhanchong", "laoshinianchong"],
-        "daofeishi": ["baibeifeishi", "hufeishi", "daofeishi"],
+        # "bazidilaohu": ["bazidilaohu-bei", "bazidilaohu-fu"],
+        # "xiaodilaohu": ["xiaodilaohu-bei", "xiaodilaohu-fu"],
+        # # 年虫组（举例）
+        # "dongfangnianchong": ["dongfangnianchong", "dongfangzhanchong"],
+        # "laoshinianchong": ["laoshizhanchong", "laoshinianchong"],
+        # "daofeishi": ["baibeifeishi", "hufeishi", "daofeishi"],
+        # 粗分类：insect 可匹配任意具体昆虫类别（不依赖 detect/class_name 严格一致）
+        "insect": ["*"],
     }
     # 小虫（稻飞虱）基本不需要合并，保持 None 即可；若 xml 里有别名可在此补
     CLASS_MERGE_TO_GROUPS_SMALL: dict[str, list[str]] | None = None
@@ -998,16 +1115,15 @@ if __name__ == "__main__":
     # ----------------------- 大虫模型配置 -----------------------
     large_cls_list = None
     large_detect_model_path = "/Users/shunyaoyin/Documents/code/models/kuangxuan_0424.pt"
-    # large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/20260426-middle-01/best.pt"
-    # large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/20260426-large-02-insect/best.pt"
-    # large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/20260426-large-01/best.pt"
+    large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/v1.7-0508-insect-build/best.pt"
+    large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/v1.8-0509-insect-build-net/best.pt"
     # 若有大虫分类模型，填路径；否则 None 仅用 detect 的 class_name
-    large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260424-all-large/best.pt"
-    large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260428-all-large/best.pt"
-    # large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/v4-cls/temp.pt"
-    # large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/v3-cls/v3-北京/best.pt"
+    large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v1-20260424-all-large/best.pt"
+    # large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v2-20260428-all-large/best.pt"
+    # large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v6-cls/temp.pt"
+    large_cls_model_path = None
     large_size_config_path = None
-    large_conf_thresh = 0.1
+    large_conf_thresh = 0.01
     large_clip_size = 0
     large_overlap_size = 600
     large_edge_reject_distance = 5
@@ -1015,24 +1131,30 @@ if __name__ == "__main__":
     large_edge_reject_cls_conf_threshold = 0.3
     large_cls_top1_conf_threshold = 0.3
     large_cls_pad_square = True
+    # todo 一定注意配置
     large_detect_pad_square_full_image = True
-    large_detect_nms_iou = None
+    large_detect_nms_iou = 0.7
     large_detect_max_det = 1000
     # 跨类别 NMS：解决“两个不同 detect 类别但重叠很大”的重复框
-    large_detect_nms_agnostic: bool | None = False
+    large_detect_nms_agnostic: bool | None = True
     # 分类后去重：按 cls_name 做一次 IoU 去重（避免“同一对象两个几乎相同框”）
-    large_post_dedup_iou_threshold: float | None = 0.95
+    large_post_dedup_iou_threshold: float | None = 0.9
 
     # ----------------------- 输入输出 -----------------------
     input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/福建大赛"
-    input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-测试数据集"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-测试数据集"
     # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/虫情4设备现场测试数据"
     # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/duankou_1"
-    input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-测试数据集"
-    input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-标准测试集"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/daofeishi-测试数据集"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-标准测试集"
     # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/比赛-北京"
-    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/大虫/big-insect-ori"
-    output_dir = input_path + "-kx-c2"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/红河生产/0428"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/红河生产/0428"
+    # 检出测试
+    input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-检出测试集"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-检测测试集泛化"
+    output_dir = input_path + "-d1.8"
+    # output_dir = input_path + "-d0424"
     predict_debug = False
     debug_clip = False
     label_mode = "minimal"  # "minimal" | "detailed"
@@ -1142,6 +1264,7 @@ if __name__ == "__main__":
                 debug_clip=debug_clip,
                 cls_pad_square=small_cls_pad_square,
                 detect_pad_square_full_image=small_detect_pad_square_full_image,
+                detect_gray=detect_gray,
                 detect_nms_iou=small_detect_nms_iou,
                 detect_max_det=small_detect_max_det,
                 return_full_final=True,
@@ -1174,6 +1297,7 @@ if __name__ == "__main__":
                 debug_clip=debug_clip,
                 cls_pad_square=large_cls_pad_square,
                 detect_pad_square_full_image=large_detect_pad_square_full_image,
+                detect_gray=detect_gray,
                 detect_nms_iou=large_detect_nms_iou,
                 detect_max_det=large_detect_max_det,
                 detect_nms_agnostic=large_detect_nms_agnostic,
@@ -1522,6 +1646,8 @@ if __name__ == "__main__":
                 predict_debug=predict_debug,
                 label_mode=label_mode,
                 val_xml_mode=(gts is not None),
+                draw_boxes=enable_draw_boxes,
+                draw_center_point_and_label=enable_draw_center_point_and_label,
                 gts=small_used_gts,
                 matches=small_matches,
                 matched_p=small_matched_p,
@@ -1539,6 +1665,8 @@ if __name__ == "__main__":
                 predict_debug=predict_debug,
                 label_mode=label_mode,
                 val_xml_mode=(gts is not None),
+                draw_boxes=enable_draw_boxes,
+                draw_center_point_and_label=enable_draw_center_point_and_label,
                 gts=large_used_gts,
                 matches=large_matches,
                 matched_p=large_matched_p,
@@ -1556,6 +1684,8 @@ if __name__ == "__main__":
                 predict_debug=predict_debug,
                 label_mode=label_mode,
                 val_xml_mode=(gts is not None),
+                draw_boxes=enable_draw_boxes,
+                draw_center_point_and_label=enable_draw_center_point_and_label,
                 gts=comb_used_gts,
                 matches=comb_matches,
                 matched_p=comb_matched_p,
@@ -1619,13 +1749,15 @@ if __name__ == "__main__":
         report_rate = (float(tp + ce) / denom_gt) if denom_gt > 0 else 0.0
         acc_rate = (float(tp) / denom_pred) if denom_pred > 0 else 0.0
         err_rate = (float(fp) / denom_pred) if denom_pred > 0 else 0.0
-        # 汇总口径与按类别保持一致：类型错也计入漏检
-        miss_rate = (float(fn + ce) / denom_gt) if denom_gt > 0 else 0.0
-        total_dev = miss_rate + err_rate
+        miss_fn_rate = (float(fn) / denom_gt) if denom_gt > 0 else 0.0
+        cls_err_rate = (float(ce) / denom_gt) if denom_gt > 0 else 0.0
+        recall_gap = (float(fn + ce) / denom_gt) if denom_gt > 0 else 0.0
+        total_dev = max(recall_gap, err_rate)
         return (
             f"{name}: tp={tp} fp={fp} fn={fn} cls_err={ce} geom_pairs={geom} | "
             f"报出率={report_rate*100:.2f}% 正确率={acc_rate*100:.2f}% 错误率={err_rate*100:.2f}% "
-            f"漏检率={miss_rate*100:.2f}% 总偏差率={total_dev*100:.2f}%"
+            f"漏检率(仅几何无框)={miss_fn_rate*100:.2f}% 类错率={cls_err_rate*100:.2f}% "
+            f"召回缺口={recall_gap*100:.2f}% 总偏差率=max(召回缺口,错误率)={total_dev*100:.2f}%"
         )
 
     print("======== 双模型验证汇总（仅对有 xml 的图统计 tp/fp/fn/cls_err） ========")
@@ -1674,13 +1806,15 @@ if __name__ == "__main__":
             fp_n = int(s.get("fp", 0))
             denom_gt = float(tp_n + ce_n + fn_n)
             denom_pred = float(tp_n + fp_n)
-            # 分组口径与按类别保持一致：类型错也计入漏检
-            miss_rate = (float(fn_n + ce_n) / denom_gt) if denom_gt > 0 else 0.0
+            miss_fn_rate = (float(fn_n) / denom_gt) if denom_gt > 0 else 0.0
+            cls_err_rate = (float(ce_n) / denom_gt) if denom_gt > 0 else 0.0
+            recall_gap = (float(fn_n + ce_n) / denom_gt) if denom_gt > 0 else 0.0
             fp_rate = (float(fp_n) / denom_pred) if denom_pred > 0 else 0.0
-            total_dev = miss_rate + fp_rate
+            total_dev = max(recall_gap, fp_rate)
             return (
                 f"{name}: gt={gt_n} pred={pred_n} tp={tp_n} fp={fp_n} fn={fn_n} cls_err={ce_n} | "
-                f"漏检率={miss_rate*100:.2f}% 误报率={fp_rate*100:.2f}% 总偏差率={total_dev*100:.2f}%"
+                f"漏检率(仅几何)={miss_fn_rate*100:.2f}% 类错率={cls_err_rate*100:.2f}% "
+                f"误报率={fp_rate*100:.2f}% 总偏差率=max(召回缺口,误报率)={total_dev*100:.2f}%"
             )
 
         print(f"{title} 分组统计（按 insect_info 的一类/二类/其他）：")

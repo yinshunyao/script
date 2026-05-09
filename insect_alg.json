@@ -1,27 +1,27 @@
 {
   "daofeishi": {
-    "detect_conf": 0.55
-  },
-  "insect": {
     "detect_conf": 0.1
   },
+  "insect": {
+    "detect_conf": 0.3
+  },
   "xiaoshie": {
-    "detect_conf": 0.6,
-    "cls_conf": 0.8
+    "detect_conf": 0.1,
+    "cls_conf": 0.3
   },
   "xiaocaie": {
-    "detect_conf": 0.6,
-    "cls_conf": 0.8
+    "detect_conf": 0.1,
+    "cls_conf": 0.3
   },
   "caoditanyee": {
     "cls_conf": 0.3
   },
   "dawen": {
-    "detect_conf": 0.7,
-    "cls_conf": 0.6
+    "detect_conf": 0.1,
+    "cls_conf": 0.3
   },
   "baibeifeishi": {
-    "cls_conf": 0.4
+    "cls_conf": 0.1
   },
   "hefeishi": {
     "cls_conf": 0.3

@@ -9,6 +9,7 @@
 #            - 可选落盘：误分类裁剪、分类正确裁剪（均含置信度于文件名）
 #            - 默认运行前清空 output_dir，避免与上次结果混合
 import csv
+import json
 import logging
 import os
 import shutil
@@ -26,6 +27,7 @@ if str(_ROOT) not in sys.path:
 
 from script.predict.model_cls import ModelCls
 from script.insect_info import c1 as DELIVERY_C1, c2 as DELIVERY_C2
+from script.insect_cls_map_util import extract_merge_groups_from_insect_cls_map_raw
 
 
 def _normalize_by_map(raw: str, mapping: dict[str, str] | None) -> str:
@@ -78,6 +80,26 @@ def is_class_match(
     pred_norm = normalize_class_name(pred_raw, merge, mapping=pred_name_map)
     gt_norm = normalize_class_name(gt_raw, merge, mapping=xml_name_map)
     return pred_norm == gt_norm
+
+
+def load_other_merge_groups_from_insect_cls_map(cls_map_raw: dict | None = None) -> dict[str, list[str]]:
+    """
+    从 ``insect_cls_map.cls_map``（或传入的 ``cls_map_raw``）提取 “other*” 的合并规则，供评估统计/混淆矩阵做等价合并。
+
+    约定：
+    - key 以 "other" 开头（如 other_gui / other_small / other_yee）
+    - value 可能是：
+      - dict：其 keys 为可能出现于标注/预测中的子类名（权重 value 在评估里不使用）
+      - list：列表元素为子类名
+    返回 merge 形态：{group_key: [alias1, alias2, ...]}
+    """
+    try:
+        return extract_merge_groups_from_insect_cls_map_raw(
+            cls_map_raw, only_other_prefix=True
+        )
+    except Exception as e:  # noqa: BLE001 — 评估脚本缺配置时降级为不合并
+        logging.warning("读取 insect_cls_map 失败，将不启用 other* 合并: %s", e)
+        return {}
 
 
 def parse_pascal_voc_objects(xml_path: str) -> list[dict]:
@@ -162,6 +184,46 @@ def _crop_export_stem(rel_path: Path, obj_index: int, pred: dict | None) -> str:
     """导出裁剪小图文件名：原图 stem + 目标序号 + 模型置信度。"""
     conf = float((pred or {}).get("conf", 0.0) or 0.0)
     return f"{rel_path.stem}__obj{obj_index:03d}__conf{conf:.3f}.jpg"
+
+
+def _fs_safe_segment(name: str, *, max_len: int = 160) -> str:
+    """目录名片段：去掉路径分隔符与非法字符，避免无法创建目录。"""
+    s = str(name or "").strip()
+    for ch in r'\/:*?"<>|\x00':
+        s = s.replace(ch, "_")
+    s = s.strip(" .")
+    if not s:
+        s = "_unknown"
+    if len(s) > max_len:
+        s = s[:max_len]
+    return s
+
+
+def _imwrite_bgr(out_path: str, img_bgr) -> bool:
+    """
+    写入 BGR 裁剪图。OpenCV 在部分环境下对含中文等非 ASCII 路径会 cv2.imwrite 静默失败；
+    失败时用 imencode + 二进制写入（与路径编码无关）。
+    """
+    if img_bgr is None or getattr(img_bgr, "size", 0) == 0:
+        return False
+    out_path = str(out_path)
+    if cv2.imwrite(out_path, img_bgr):
+        return True
+    ext = (Path(out_path).suffix or ".jpg").lower()
+    if ext not in (".jpg", ".jpeg", ".jp2", ".png", ".bmp", ".tif", ".tiff", ".webp"):
+        ext = ".jpg"
+    ok_buf, buf = cv2.imencode(ext, img_bgr)
+    if not ok_buf or buf is None:
+        logging.warning("裁剪图 imencode 失败: %s", out_path)
+        return False
+    p = Path(out_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        p.write_bytes(buf.tobytes())
+    except OSError as e:
+        logging.warning("裁剪图写入失败 %s: %s", out_path, e)
+        return False
+    return True
 
 
 def _export_stat_by_cls_csv(out_dir: str, stat_by_cls: dict[str, dict[str, int]]) -> None:
@@ -496,9 +558,12 @@ if __name__ == "__main__":
     # cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v4-cls/temp.pt"
     # v5
     cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v5-cls/best.pt"
-
+    # v6
+    cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v6-cls/temp.pt"
+    # v7
+    cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v7-cls/best.pt"
     # 输出
-    output_dir = input_path + "-v5"
+    output_dir = input_path + "-v7"
     # 只打印关注类别（可选）：仅影响“按类别统计”的打印，不影响统计与 CSV/混淆矩阵落盘
     # 例：FOCUS_CLASS_NAMES = ("bazidilaohu", "caodiming")
     # FOCUS_CLASS_NAMES: tuple[str, ...] | None = (
@@ -512,7 +577,9 @@ if __name__ == "__main__":
 
     # 类别归一（可选）：用于“标签一致性判断”和最终统计的类名归一
     # 说明：和 `script/predict_size_validate.py` 一样，key 为归一名，values 为别名列表。
-    CLASS_MERGE_TO_GROUPS: dict[str, list[str]] | None = None
+    CLASS_MERGE_TO_GROUPS: dict[str, list[str]] | None = (
+        load_other_merge_groups_from_insect_cls_map() or None
+    )
     # 名称等价映射（可选）：用于解决“xml 标注名”和“模型预测名”命名不一致的问题。
     # 这两个 dict 的 value 应该是同一个 canonical（标准名）。
     #
@@ -525,7 +592,8 @@ if __name__ == "__main__":
         "baibeifeishi": "daofeishi",
         # "daofeishi": "daofeishi",
         "hefeishi": "daofeishi",
-        "dawen": "wen",
+        # "dawen": "wen",
+        "huifeishi": "daofeishi",
     }
     PRED_NAME_TO_CANON: dict[str, str] | None = None
 
@@ -642,10 +710,12 @@ if __name__ == "__main__":
                     out_ok = os.path.join(
                         output_dir,
                         "classified_crops",
-                        f"class={gt_norm}",
+                        f"class={_fs_safe_segment(gt_norm)}",
                     )
                     _ensure_dir(out_ok)
-                    cv2.imwrite(os.path.join(out_ok, stem), crop)
+                    out_file = os.path.join(out_ok, stem)
+                    if not _imwrite_bgr(out_file, crop):
+                        logging.warning("未能写入正确预测裁剪图: %s", out_file)
             else:
                 # 分类模型每个 GT 都会给出一个预测：
                 # - 对 GT 类别来说是 FN（漏报/没报对）
@@ -666,21 +736,25 @@ if __name__ == "__main__":
                 out_sub_gt_first = os.path.join(
                     output_dir,
                     "misclassified_crops",
-                    f"gt={gt_norm}",
-                    f"pred={pred_norm}",
+                    f"gt={_fs_safe_segment(gt_norm)}",
+                    f"pred={_fs_safe_segment(pred_norm)}",
                 )
                 _ensure_dir(out_sub_gt_first)
-                cv2.imwrite(os.path.join(out_sub_gt_first, stem), crop)
+                out_mis = os.path.join(out_sub_gt_first, stem)
+                if not _imwrite_bgr(out_mis, crop):
+                    logging.warning("未能写入误分类裁剪图: %s", out_mis)
 
                 # 新增反向索引：先按 Pred，再按 GT（便于从预测类别反查）
                 out_sub_pred_first = os.path.join(
                     output_dir,
                     "misclassified_crops_by_pred",
-                    f"pred={pred_norm}",
-                    f"gt={gt_norm}",
+                    f"pred={_fs_safe_segment(pred_norm)}",
+                    f"gt={_fs_safe_segment(gt_norm)}",
                 )
                 _ensure_dir(out_sub_pred_first)
-                cv2.imwrite(os.path.join(out_sub_pred_first, stem), crop)
+                out_mis2 = os.path.join(out_sub_pred_first, stem)
+                if not _imwrite_bgr(out_mis2, crop):
+                    logging.warning("未能写入误分类裁剪图: %s", out_mis2)
 
         print(
             f"[{idx}/{len(image_files)}] {rel_path}  objs={per_img_total}  "

@@ -376,6 +376,7 @@ class PredictSize:
                 cls_top1_conf_threshold=None,
                 cls_pad_square=None,
                 cls_gray_binarize=None,
+                detect_gray=False,
                 detect_pad_square=True,
                 detect_pad_square_full_image=False,
                 detect_nms_iou=None,
@@ -403,6 +404,7 @@ class PredictSize:
                 若构造时加载了 insect_alg.json 且对当前预测类名配置了 cls_conf，则对该类优先使用 JSON 门限。
         :param cls_pad_square: 本次推理是否对分类裁剪做白边正方形 padding；None 时用构造 PredictSize 时的默认值
         :param cls_gray_binarize: 本次是否对分类裁剪做灰度+CLAHE+Otsu；None 时用构造时的默认值
+        :param detect_gray: 是否将送入 detect 的输入图转为灰度（再转回 3 通道 BGR 以兼容 YOLO 输入）；默认 False
         :param detect_pad_square: 检测切片不足 clip_size 时是否补成正方形（原图居中、黑边）；默认 True
         :param detect_pad_square_full_image: 整图检测（不切片）时是否也先补成正方形再检测；默认 False（保持历史行为）
         :param detect_nms_iou: Ultralytics 内置 NMS 的 IoU 阈值（区别于 merge_iou 的 iou_threshold）；None 表示用 detector 默认值
@@ -416,9 +418,20 @@ class PredictSize:
                  {x1, y1, x2, y2, conf, cls_id, class_name, detect_id,
                   cls_name, cls_conf}
         """
+        img_detect = image
+        if bool(detect_gray) and image is not None and getattr(image, "size", 0) != 0:
+            try:
+                if image.ndim == 3 and image.shape[2] == 3:
+                    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                    img_detect = cv2.merge([gray, gray, gray])
+                elif image.ndim == 2:
+                    img_detect = cv2.merge([image, image, image])
+            except Exception:
+                img_detect = image
+
         # ---- 第 1 步: 检测 ----
         detections = self.detector.predict(
-            image,
+            img_detect,
             clip_size=clip_size,
             overlap_size=overlap_size,
             padding=bool(detect_pad_square),

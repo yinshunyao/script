@@ -26,7 +26,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from script.predict.model_detect import ior
-from predict_size import PredictSize, write_pascal_voc_xml
+from script.predict_size import PredictSize, write_pascal_voc_xml
 
 
 def _dedup_by_cls_iou(rows: list[dict], *, iou_threshold: float) -> list[dict]:
@@ -72,16 +72,41 @@ def _build_class_alias_map(
     for key, vals in merge.items():
         m[key] = key
         for v in vals:
+            # '*' 作为通配符时不参与别名映射
+            if str(v).strip() == "*":
+                continue
             m[v] = key
     return m
 
 
+def _get_wildcard_group_key(merge: dict[str, list[str]] | None) -> str | None:
+    """
+    返回配置了通配符 '*' 的 group key（如 'insect': ['*']）。
+    约定：若存在多个，按 dict 迭代顺序取第一个。
+    """
+    if not merge:
+        return None
+    for k, aliases in merge.items():
+        for a in (aliases or []):
+            if str(a).strip() == "*":
+                return str(k)
+    return None
+
+
 def normalize_class_name(raw: str, merge: dict[str, list[str]] | None) -> str:
-    """配置内映射到组 key；否则原样（精确匹配语义）。"""
+    """
+    配置内映射到组 key；否则原样。
+
+    注意：'*' 仅用于「insect 粗分类可匹配任意具体昆虫」的 **匹配规则**（见 is_class_match），
+    不应作为 normalize 的兜底归一规则，否则会把所有未显式列出的类别都压扁成同一个组，影响统计。
+    """
     if not raw:
         return ""
     alias = _build_class_alias_map(merge)
-    return alias.get(raw, raw)
+    hit = alias.get(raw)
+    if hit is not None:
+        return hit
+    return raw
 
 
 def is_metric_ignored_other(raw: str, merge: dict[str, list[str]] | None) -> bool:
@@ -89,6 +114,11 @@ def is_metric_ignored_other(raw: str, merge: dict[str, list[str]] | None) -> boo
     ``other`` 类在生产环境不输出；验证脚本中该类不参与 TP/FP/FN、按类统计、混淆矩阵等指标计算。
     判定基于 ``normalize_class_name`` 后与 ``other`` 等价（忽略大小写）。
     """
+    # 通配符 '*' 的语义：匹配“包括 other 在内”的任意类别。
+    # 一旦启用 wildcard 组（如 'insect': ['*']），则不应再把 other 从评估/匹配集合中剔除，
+    # 否则会出现“miss gt=other 永远无法匹配”的现象。
+    if _get_wildcard_group_key(merge):
+        return False
     norm = normalize_class_name(str(raw or ""), merge)
     return str(norm).strip().lower() == "other"
 
@@ -103,6 +133,8 @@ def _build_class_groups(merge: dict[str, list[str]] | None) -> dict[str, set[str
     for key, vals in merge.items():
         s = set([key])
         for v in vals or []:
+            if str(v).strip() == "*":
+                continue
             s.add(v)
         groups[key] = s
     return groups
@@ -156,6 +188,12 @@ def is_class_match(pred_raw: str, gt_raw: str, merge: dict[str, list[str]] | Non
     gt_raw = str(gt_raw or "")
     if not pred_raw or not gt_raw:
         return False
+
+    wildcard_key = _get_wildcard_group_key(merge)
+    if wildcard_key:
+        # 若任一侧归一后为 wildcard 组，则视为“昆虫粗分类”匹配任意具体昆虫
+        if normalize_class_name(pred_raw, merge) == wildcard_key or normalize_class_name(gt_raw, merge) == wildcard_key:
+            return True
 
     groups = _build_class_groups(merge)
     super_groups = _build_super_groups(groups)
@@ -473,6 +511,53 @@ def draw_main_output_image(
     if mode not in ("minimal", "detailed"):
         mode = "detailed"
 
+    def _put_text_outline(img: np.ndarray, text: str, org: tuple[int, int], *, fs: float) -> None:
+        if not text:
+            return
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.putText(img, text, org, font, fs, (0, 0, 0), thickness=3, lineType=cv2.LINE_AA)
+        cv2.putText(img, text, org, font, fs, (255, 255, 255), thickness=1, lineType=cv2.LINE_AA)
+
+    def _draw_compact_labels(
+        img: np.ndarray,
+        *,
+        x1: int,
+        y1: int,
+        w_img: int,
+        h_img: int,
+        lines: list[tuple[str, float]],
+    ) -> None:
+        lines = [(str(t), float(fs)) for (t, fs) in lines if str(t)]
+        if not lines:
+            return
+
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        gap = 2
+        # 字体上限：避免遮挡画面（与 dual 的“中心点标签”一致的小字号风格）
+        max_fs = 0.45
+        sizes: list[tuple[str, float, int, int]] = []
+        for t, fs in lines:
+            fs2 = min(max_fs, max(0.2, float(fs)))
+            (tw, th), bl = cv2.getTextSize(t, font, fs2, 1)
+            sizes.append((t, fs2, th, bl))
+
+        total_h = sum(th + bl for _t, _fs, th, bl in sizes) + gap * (len(sizes) - 1)
+        # 默认放在框上方；若超出顶部，则放到框下方
+        place_above = (y1 - 6 - total_h) >= 0
+        if place_above:
+            baseline = y1 - 6
+            for t, fs, th, bl in reversed(sizes):
+                _put_text_outline(img, t, (max(0, min(w_img - 1, x1 + 2)), baseline), fs=fs)
+                baseline -= th + bl + gap
+        else:
+            baseline = y1 + 6 + sizes[0][2] + sizes[0][3]
+            baseline = max(0, min(h_img - 1, baseline))
+            for idx, (t, fs, th, bl) in enumerate(sizes):
+                by = baseline + idx * (th + bl + gap)
+                if by >= h_img:
+                    break
+                _put_text_outline(img, t, (max(0, min(w_img - 1, x1 + 2)), int(by)), fs=fs)
+
     def _draw_non_val_with_det_class(img_bgr: np.ndarray, rows: list[dict]) -> np.ndarray:
         """
         非验证模式的输出图：沿用 PredictSize._draw_results 的视觉规则，
@@ -480,7 +565,6 @@ def draw_main_output_image(
         但额外在标签中显示 detect 模型的 class_name，便于对比 detect vs cls。
         """
         img_draw_local = img_bgr.copy()
-        font = cv2.FONT_HERSHEY_SIMPLEX
         color_out = (0, 0, 255)
         color_other = (0, 255, 255)  # other：黄色（BGR）
         color_drop_debug = (180, 180, 180)
@@ -525,51 +609,17 @@ def draw_main_output_image(
                 continue
 
             font_scale = float(params["font_scale"])
-            thickness = int(params["text_thk"])
-            line_specs = [(label, font_scale, thickness)]
+            line_specs: list[tuple[str, float]] = [(label, font_scale)]
             if edge_label:
-                line_specs.append(
-                    (
-                        edge_label,
-                        float(params["edge_font_scale"]),
-                        int(params["edge_text_thk"]),
-                    )
-                )
-
-            gap = 2
-            rows_txt = []
-            baseline_y = y1 - 4
-            for line, fs, thk in reversed(line_specs):
-                (tw, th), bl = cv2.getTextSize(line, font, fs, thk)
-                rows_txt.append((line, fs, thk, tw, th, bl, baseline_y))
-                baseline_y -= th + bl + gap
-
-            max_tw = max(row[3] for row in rows_txt)
-            pad_x = 4
-            bg_bottom = y1
-            bg_top = baseline_y + gap
-            bg_left = x1
-            bg_right = x1 + max_tw + pad_x
-            if bg_top < 0:
-                dy = -bg_top
-                bg_top += dy
-                bg_bottom += dy
-                rows_txt = [
-                    (ln, fs, thk, tw, th, bl, by + dy)
-                    for (ln, fs, thk, tw, th, bl, by) in rows_txt
-                ]
-
-            cv2.rectangle(img_draw_local, (bg_left, bg_top), (bg_right, bg_bottom), color, -1)
-            for line, fs, thk, _tw, _th, _bl, by in rows_txt:
-                cv2.putText(
-                    img_draw_local,
-                    line,
-                    (x1 + 2, by),
-                    font,
-                    fs,
-                    (255, 255, 255),
-                    thk,
-                )
+                line_specs.append((edge_label, float(params["edge_font_scale"])))
+            _draw_compact_labels(
+                img_draw_local,
+                x1=x1,
+                y1=y1,
+                w_img=w_img,
+                h_img=h_img,
+                lines=line_specs,
+            )
 
         return img_draw_local
 
@@ -679,53 +729,19 @@ def draw_main_output_image(
             continue
 
         font_scale = float(params["font_scale"])
-        thickness = int(params["text_thk"])
-        line_specs = [(label, font_scale, thickness)]
+        line_specs: list[tuple[str, float]] = [(label, font_scale)]
         if gt_note:
-            line_specs.append((gt_note, font_scale, thickness))
+            line_specs.append((gt_note, font_scale))
         if edge_label:
-            line_specs.append(
-                (
-                    edge_label,
-                    float(params["edge_font_scale"]),
-                    int(params["edge_text_thk"]),
-                )
-            )
-
-        gap = 2
-        rows = []
-        baseline_y = y1 - 4
-        for line, fs, thk in reversed(line_specs):
-            (tw, th), bl = cv2.getTextSize(line, font, fs, thk)
-            rows.append((line, fs, thk, tw, th, bl, baseline_y))
-            baseline_y -= th + bl + gap
-
-        max_tw = max(row[3] for row in rows)
-        pad_x = 4
-        bg_bottom = y1
-        bg_top = baseline_y + gap
-        bg_left = x1
-        bg_right = x1 + max_tw + pad_x
-        if bg_top < 0:
-            dy = -bg_top
-            bg_top += dy
-            bg_bottom += dy
-            rows = [
-                (ln, fs, thk, tw, th, bl, by + dy)
-                for (ln, fs, thk, tw, th, bl, by) in rows
-            ]
-
-        cv2.rectangle(img_draw, (bg_left, bg_top), (bg_right, bg_bottom), color, -1)
-        for line, fs, thk, _tw, _th, _bl, by in rows:
-            cv2.putText(
-                img_draw,
-                line,
-                (x1 + 2, by),
-                font,
-                fs,
-                (255, 255, 255),
-                thk,
-            )
+            line_specs.append((edge_label, float(params["edge_font_scale"])))
+        _draw_compact_labels(
+            img_draw,
+            x1=x1,
+            y1=y1,
+            w_img=w_img,
+            h_img=h_img,
+            lines=line_specs,
+        )
 
     # 漏检：依据源 xml 标注画红框
     for j, g in enumerate(gts):

@@ -75,7 +75,12 @@ class PestLevelJson:
 
 @dataclass(frozen=True)
 class InsectJsonRecord:
-    """`insect_info.json` 单条记录（全量昆虫/样本元数据）。"""
+    """`insect_info.json` 单条记录（全量昆虫/样本元数据）。
+
+    - **顶层** ``min_mm`` / ``max_mm``：成像典型跨度（毫米），对应分类 patch 中虫体沿长轴方向的
+      典型最大尺寸，可含翅展等；**不等同**于纯体长。
+    - **``body_length_mm``**：身体尺度（毫米），与文献/表册体长一致；训练增强里 ``px/mm`` 换算以此为准。
+    """
 
     pinyin: str
     name_zh: str
@@ -229,11 +234,23 @@ def json_record(key: str) -> Optional[InsectJsonRecord]:
 
 
 def _body_length_mm_bounds(rec: InsectJsonRecord) -> Tuple[float, float]:
-    """体长毫米区间 ``(min_mm, max_mm)``：优先顶层 ``min_mm`` / ``max_mm``，否则用 ``body_length_mm``。"""
+    """身体尺度毫米区间 ``(min_mm, max_mm)``：仅用 ``body_length_mm``；缺失时回退顶层（兼容旧数据）。"""
+    bl = rec.body_length_mm
+    lo = bl.min_mm if bl.min_mm is not None else rec.min_mm
+    hi = bl.max_mm if bl.max_mm is not None else rec.max_mm
+    if lo is None or hi is None:
+        raise ValueError(f"昆虫 {rec.pinyin!r} 缺少有效的体长 min/max（毫米）")
+    if lo > hi:
+        lo, hi = hi, lo
+    return (lo, hi)
+
+
+def _imaging_extent_mm_bounds(rec: InsectJsonRecord) -> Tuple[float, float]:
+    """成像典型跨度毫米区间：优先顶层 ``min_mm`` / ``max_mm``；缺失时与体长区间相同。"""
     lo = rec.min_mm if rec.min_mm is not None else rec.body_length_mm.min_mm
     hi = rec.max_mm if rec.max_mm is not None else rec.body_length_mm.max_mm
     if lo is None or hi is None:
-        raise ValueError(f"昆虫 {rec.pinyin!r} 缺少有效的体长 min/max（毫米）")
+        return _body_length_mm_bounds(rec)
     if lo > hi:
         lo, hi = hi, lo
     return (lo, hi)

@@ -1095,7 +1095,8 @@ if __name__ == "__main__":
     # ----------------------- 小虫模型配置（稻飞虱） -----------------------
     small_cls_list = []
     small_detect_model_path = "/Users/shunyaoyin/Documents/code/models/daofeishi-detect-0405.pt"
-    small_cls_model_path = "/Users/shunyaoyin/Documents/code/models/daofeishi-cls.pt"
+    # small_cls_model_path = "/Users/shunyaoyin/Documents/code/models/daofeishi-cls.pt"
+    small_cls_model_path = None
     small_size_config_path = None
     small_conf_thresh = 0.55
     small_clip_size = 640
@@ -1115,8 +1116,8 @@ if __name__ == "__main__":
     # ----------------------- 大虫模型配置 -----------------------
     large_cls_list = None
     large_detect_model_path = "/Users/shunyaoyin/Documents/code/models/kuangxuan_0424.pt"
-    large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/v1.7-0508-insect-build/best.pt"
     large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/v1.8-0509-insect-build-net/best.pt"
+    large_detect_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/v2.0-0512/训练过程/temp.pt"
     # 若有大虫分类模型，填路径；否则 None 仅用 detect 的 class_name
     large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v1-20260424-all-large/best.pt"
     # large_cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v2-20260428-all-large/best.pt"
@@ -1153,8 +1154,12 @@ if __name__ == "__main__":
     # 检出测试
     input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-检出测试集"
     # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-检测测试集泛化"
-    output_dir = input_path + "-d1.8"
-    # output_dir = input_path + "-d0424"
+    input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/框选all/生产"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/框选all/生产偏多"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/框选all/all-0330-0331-beijing"
+    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/生产收集/草地螟"
+    # output_dir = input_path + "-daofeishi"
+    output_dir = input_path + "-v2.0"
     predict_debug = False
     debug_clip = False
     label_mode = "minimal"  # "minimal" | "detailed"

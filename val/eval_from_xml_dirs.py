@@ -605,7 +605,7 @@ if __name__ == "__main__":
     # PRED_XML_DIR = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/福建大赛-d0424/large"
     GT_XML_DIR = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-检出测试集"
     PRED_XML_DIR = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-检出测试集-d0424/large"
-    PRED_XML_DIR = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-检出测试集-d1.6/large"
+    # PRED_XML_DIR = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-检出测试集-d1.8/large"
 
     # ----------------------- 输出 -----------------------
     OUT_DIR = PRED_XML_DIR  # None 表示不落盘，只打印

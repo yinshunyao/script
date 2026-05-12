@@ -3,7 +3,7 @@
     "detect_conf": 0.1
   },
   "insect": {
-    "detect_conf": 0.3
+    "detect_conf": 0.1
   },
   "xiaoshie": {
     "detect_conf": 0.1,

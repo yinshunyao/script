@@ -7,7 +7,7 @@ Use-case:
 - You already have GT annotation XMLs in a directory
 - You already have model inference output XMLs in another directory
 - You want to compute basic VOC-style metrics (TP/FP/FN/cls_err) using the same
-  matching + class-normalization rules as `script/predict_size_validate*.py`
+  matching + class-normalization rules as `script/predict_size_validate_lib.py`
 
 This file is designed to:
 - expose reusable functions for other modules to import
@@ -26,7 +26,7 @@ from typing import Any, NamedTuple
 
 import cv2
 
-from script.predict_size_validate import (
+from script.predict_size_validate_lib import (
     draw_main_output_image,
     is_class_match,
     is_metric_ignored_other,
@@ -47,7 +47,7 @@ class EvalConfig:
     class_merge_to_groups: dict[str, list[str]] | None = None
     focus_classes: tuple[str, ...] | None = None
     ignore_missing_pred_xml: bool = True
-    # Default off: save overlay images using the same palette as predict_size_validate.draw_main_output_image
+    # Default off: save overlay images using the same palette as predict_size_validate_lib.draw_main_output_image
     # (green=TP, gray=class mismatch, red=geom-unmatched pred, pink=missed GT).
     visualize_matching: bool = False
     # When visualize_matching is True: output root. If None and out_dir is set, uses out_dir / "matching_visualization".
@@ -346,7 +346,7 @@ def save_eval_visualization(
     class_merge_to_groups: dict[str, list[str]] | None,
 ) -> bool:
     """
-    使用 predict_size_validate.draw_main_output_image 的 val_xml 配色：
+    使用 predict_size_validate_lib.draw_main_output_image 的 val_xml 配色：
     绿=正确，灰=类型错误，红=预测框与 GT 几何未匹配（脚本内题注为「误报」），粉=漏报 GT。
     """
     ip = Path(image_path)
@@ -625,7 +625,7 @@ if __name__ == "__main__":
     # GT 有 xml 但 pred 没有 xml：默认忽略（不纳入统计）。设为 False 则按“空预测”计算 FN。
     IGNORE_MISSING_PRED_XML = True
 
-    # 默认关闭：在 GT XML 同级目录查找同名图片，按评估结果着色保存（与 predict_size_validate val_xml 一致）
+    # 默认关闭：在 GT XML 同级目录查找同名图片，按评估结果着色保存（与 predict_size_validate_lib val_xml 一致）
     VISUALIZE_MATCHING = True
     # 若开启且本项为 None，则在 OUT_DIR 非空时使用 OUT_DIR / "matching_visualization"
     VISUALIZE_OUT_DIR: str | None = OUT_DIR

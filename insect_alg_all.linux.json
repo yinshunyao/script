@@ -1,0 +1,217 @@
+{
+  "models":
+  {
+    "detect_daofeishi":
+    {
+      "model": "/data/models/daofeishi-detect-0415.pt",
+      "enable": false,
+      "model_type": "detect",
+      "half": true,
+      "augment": true,
+      "dia_w": [5472],
+      "dia": [50, 200],
+      "detect_conf": 0.6,
+      "clip_size": 640,
+      "overlap_size": 120,
+      "edge_reject_distance": 5,
+      "edge_reject_conf_threshold": 0.8,
+      "edge_reject_cls_conf_threshold": 0.8,
+      "out":
+      {
+        "daofeishi":
+        {
+          "cn_name": "稻飞虱",
+          "infer_name": "daofeishi",
+          "models":
+          {
+            "cls":
+            {
+                "model": "/data/models/daofeishi-cls.pt",
+                "enable": true,
+                "from_bbox": true,
+                "to_square": true,
+                "cls_conf": 0.3,
+                "out":
+                {
+                  "baibeifeishi": {
+                    "cn_name": "白背飞虱"
+                  },
+                  "hefeishi": {
+                    "cn_name": "褐飞虱"
+                  },
+                  "huifeishi": {
+                    "cn_name": "白背飞虱",
+                    "infer_name": "baibeifeishi"
+                  },
+                  "other": {
+                    "cn_name": "疑似飞虱",
+                    "infer_name": "other_feishi"
+                  }
+                }
+           }
+          }
+        }
+      }
+    },
+    "detect_big": {
+      "model": "/data/models/seg-3.1.0.pt",
+      "enable": true,
+      "model_type": "segment",
+      "seg_imgsz": 960,
+      "to_square": true,
+      "half": false,
+      "augment": false,
+      "clip_size": 0,
+      "overlap_size": 0,
+      "dia_w": [5472],
+      "dia": [150, 2500],
+      "detect_conf": 0.3,
+      "out": {
+        "*": {
+          "cn_name": "昆虫",
+          "infer_name": "insect",
+          "dia": [300, 2500],
+          "detect_conf": 0.4,
+          "models": {
+            "cls": {
+              "model": "/data/models/cls-3.1.2-all.pt",
+              "enable": true,
+              "from_bbox": false,
+              "to_square": true,
+              "cls_crop_background": "white",
+              "cls_pad_color": "white",
+              "cls_conf": 0.1,
+              "out": {
+                "baibianqieyee": { "enable": false, "cn_name": "白边切夜蛾", "infer_name": "baibianqieyee", "dia": [550, 1100] },
+                "baitiaoyee": {
+                  "cn_name": "白条夜蛾",
+                  "infer_name": "baitiaoyee"
+                },
+                "bazidilaohu": { "cn_name": "八字地老虎", "infer_name": "bazidilaohu" },
+                "bowenyee": { "enable": true, "cn_name": "波纹夜蛾", "infer_name": "bowenyee" },
+                "caoditanyee": { "cn_name": "草地贪夜蛾", "infer_name": "caoditanyee" },
+                "fayee": { "enable": true, "cn_name": "乏夜蛾", "infer_name": "fayee" },
+                "ganlanyee": { "cn_name": "甘蓝夜蛾", "infer_name": "ganlanyee" },
+                "huangyee": { "cn_name": "荒夜蛾", "infer_name": "huangyee" },
+                "jinbanyee": { "enable": true, "cn_name": "金斑夜蛾", "infer_name": "jinbanyee" },
+                "jingwendiyee": { "enable": true, "cn_name": "警纹地夜蛾", "infer_name": "jingwendiyee" },
+                "kuanjingyee": { "enable": true, "cn_name": "宽胫夜蛾", "infer_name": "kuanjingyee" },
+                "maimianyee": { "enable": true, "cn_name": "麦面夜蛾", "infer_name": "maimianyee" },
+                "maisuiyee": { "enable": true, "cn_name": "麦穗夜蛾", "infer_name": "maisuiyee" },
+                "moyee": { "enable": true, "cn_name": "陌夜蛾", "infer_name": "moyee" },
+                "pingshaoyingyee": { "enable": true, "cn_name": "苹梢鹰夜蛾", "infer_name": "pingshaoyingyee" },
+                "qiweiyee": { "enable": true, "cn_name": "漆尾夜蛾", "infer_name": "qiweiyee" },
+                "sanchadilaohu": { "enable": true, "cn_name": "三叉地老虎", "infer_name": "sanchadilaohu" },
+                "tiancaiyee": { "cn_name": "甜菜夜蛾", "infer_name": "tiancaiyee" },
+                "xianweiyee": { "cn_name": "线委夜蛾", "infer_name": "xianweiyee" },
+                "xiaodilaohu": { "cn_name": "小地老虎", "infer_name": "xiaodilaohu" },
+                "xiewenyee": { "cn_name": "斜纹夜蛾", "infer_name": "xiewenyee" },
+                "xiumuyee": { "cn_name": "朽木夜蛾", "infer_name": "xiumuyee" },
+                "xuanyouyee": { "cn_name": "旋幽夜蛾", "infer_name": "xuanyouyee" },
+                "yindingyee": { "cn_name": "银锭夜蛾", "infer_name": "yindingyee" },
+                "yinwenyee": { "cn_name": "银纹夜蛾", "infer_name": "yinwenyee" },
+                "yiqieyee": { "enable": true, "cn_name": "异切夜蛾", "infer_name": "yiqieyee" },
+                "zhongjinhuyee": { "enable": true, "cn_name": "中金弧夜蛾", "infer_name": "zhongjinhuyee" },
+                "dadilaohu": { "cn_name": "大地老虎", "infer_name": "dadilaohu" },
+                "dongfangnianchong": { "cn_name": "东方粘虫", "infer_name": "dongfangnianchong" },
+                "erdianweiyee": { "cn_name": "二点委夜蛾", "infer_name": "erdianweiyee" },
+                "huangdilaohu": { "cn_name": "黄地老虎", "infer_name": "huangdilaohu" },
+                "laoshinianchong": { "cn_name": "劳氏粘虫", "infer_name": "laoshinianchong" },
+                "mianlingchong": { "cn_name": "棉铃虫", "infer_name": "mianlingchong" },
+                "yanqingchong": { "enable": true, "cn_name": "烟青虫", "infer_name": "yanqingchong" },
+                "hongzonghuiyee": { "enable": true, "cn_name": "红棕灰夜蛾", "infer_name": "hongzonghuiyee" },
+                "juanyee": { "enable": true, "cn_name": "涓夜蛾", "infer_name": "juanyee" },
+                "xiaozaoqiaoe": { "cn_name": "小造桥蛾", "infer_name": "xiaozaoqiaoe" },
+                "yanyee": { "cn_name": "焰夜蛾", "infer_name": "yanyee" },
+                "biancie": { "enable": true, "cn_name": "扁刺蛾", "infer_name": "biancie" },
+                "chimeidongyee": { "enable": true, "cn_name": "齿美冬夜蛾", "infer_name": "chimeidongyee" },
+                "dingyee": { "enable": true, "cn_name": "鼎夜蛾", "infer_name": "dingyee" },
+                "danmainianchong": { "enable": true, "cn_name": "淡脉粘虫", "infer_name": "danmainianchong" },
+                "ganwenyee": { "cn_name": "干纹夜蛾", "infer_name": "ganwenyee" },
+                "liushangyee": { "enable": true, "cn_name": "柳裳夜蛾", "infer_name": "liushangyee" },
+                "meiguijinyee": { "enable": true, "cn_name": "玫瑰巾夜蛾", "infer_name": "meiguijinyee" },
+                "muxuyee": { "cn_name": "苜蓿夜蛾", "infer_name": "muxuyee" },
+                "niaozuihuyee": { "enable": true, "cn_name": "鸟嘴壶夜蛾", "infer_name": "niaozuihuyee" },
+                "pingzhangzhoue": { "enable": true, "cn_name": "苹掌舟蛾", "infer_name": "pingzhangzhoue" },
+                "zitiaochie": { "enable": true, "cn_name": "紫条尺蛾", "infer_name": "zitiaochie" },
+                "badianhuidenge": { "cn_name": "八点灰灯蛾", "infer_name": "badianhuidenge" },
+                "chunlue": { "cn_name": "春鹿蛾", "infer_name": "chunlue" },
+                "chenwudenge": { "cn_name": "尘污灯蛾", "infer_name": "chenwudenge" },
+                "fendiedenge": { "cn_name": "粉蝶灯蛾", "infer_name": "fendiedenge" },
+                "shanguangmeidenge": { "cn_name": "闪光玫灯蛾", "infer_name": "shanguangmeidenge" },
+                "yibeilue": { "cn_name": "伊贝鹿蛾", "infer_name": "yibeilue" },
+                "nianmoyee": { "cn_name": "粘膜夜蛾", "infer_name": "nianmoyee" },
+                "daodue": { "cn_name": "稻毒蛾", "infer_name": "daodue" },
+                "ganshutiane": { "cn_name": "甘薯天蛾", "infer_name": "ganshutiane" },
+                "gouyuetiane": { "cn_name": "构月天蛾", "infer_name": "gouyuetiane", "dia": [1300, 2500] },
+                "quewentiane": { "cn_name": "雀纹天蛾", "infer_name": "quewentiane", "dia": [1300, 2500] },
+                "bailajuanxuyeming": { "cn_name": "白蜡绢须野螟", "infer_name": "bailajuanxuyeming" },
+                "shuiming": { "cn_name": "水螟", "infer_name": "shuiming" },
+                "youcaijiaoyeming": { "cn_name": "油菜角野螟", "infer_name": "youcaijiaoyeming" },
+                "doujiayeming": { "cn_name": "豆荚野螟", "infer_name": "doujiayeming" },
+                "guajuanming": { "cn_name": "瓜绢螟", "infer_name": "guajuanming" },
+                "huangyeming": { "cn_name": "黄野螟", "infer_name": "huangyeming" },
+                "maimuyeming": { "cn_name": "麦牧野螟", "infer_name": "maimuyeming" },
+                "qijiaoming": { "cn_name": "歧角螟", "infer_name": "qijiaoming", "cls_conf": 0.4 },
+                "sibanjuanyeming": { "cn_name": "四斑绢野螟", "infer_name": "sibanjuanyeming" },
+                "tiancaibaidaiyeming": { "cn_name": "甜菜白带野螟", "infer_name": "tiancaibaidaiyeming" },
+                "yumiming": { "cn_name": "玉米螟", "infer_name": "yumiming" },
+                "caodiming": { "cn_name": "草地螟", "infer_name": "caodiming" },
+                "daozongjuanyeming": { "cn_name": "稻纵卷叶螟", "infer_name": "daozongjuanyeming" },
+                "huangchizhuiyeyeming": { "cn_name": "黄翅缀叶野螟", "infer_name": "huangchizhuiyeyeming" },
+                "huangyangjuanyeming": { "cn_name": "黄杨绢野螟", "infer_name": "huangyangjuanyeming" },
+                "miandajuanyeming": { "cn_name": "棉大卷叶螟", "infer_name": "miandajuanyeming" },
+                "taozhuming": { "cn_name": "桃柱螟", "infer_name": "taozhuming" },
+                "daming": { "cn_name": "大螟", "infer_name": "daming" },
+                "erhuaming": { "cn_name": "二化螟", "infer_name": "erhuaming" },
+                "sanhuaming": { "cn_name": "三化螟", "infer_name": "sanhuaming" },
+                "heidiantaie": { "cn_name": "黑点苔蛾", "infer_name": "heidiantaie" },
+                "huangtutaie": { "cn_name": "黄土苔蛾", "infer_name": "huangtutaie" },
+                "daqingyechan": { "cn_name": "大青叶蝉", "infer_name": "daqingyechan" },
+                "goujinzhenchong": { "cn_name": "沟金针虫", "infer_name": "goujinzhenchong" },
+                "heiweiyechan": { "cn_name": "黑尾叶蝉", "infer_name": "heiweiyechan" },
+                "huajinglvwenhuang": { "cn_name": "花胫绿纹蝗", "infer_name": "huajinglvwenhuang" },
+                "huangzuliechun": { "cn_name": "黄足猎蝽", "infer_name": "huangzuliechun" },
+                "tubeibanhongchun": { "cn_name": "突背斑红蝽", "infer_name": "tubeibanhongchun" },
+                "xianbanhongchun": { "cn_name": "显斑红蝽", "infer_name": "xianbanhongchun" },
+                "xiaoguantouxishuai": { "cn_name": "小棺头蟋蟀", "infer_name": "xiaoguantouxishuai" },
+                "anheisaijingui": { "cn_name": "暗黑鳃金龟", "infer_name": "anheisaijingui" },
+                "daheisaijingui": { "cn_name": "大黑鳃金龟", "infer_name": "daheisaijingui" },
+                "daolvchun": { "cn_name": "稻绿蝽", "infer_name": "daolvchun" },
+                "hongjiaolvlijingui": { "cn_name": "红脚绿丽金龟", "infer_name": "hongjiaolvlijingui" },
+                "huangheyilijingui": { "cn_name": "黄褐异丽金龟", "infer_name": "huangheyilijingui" },
+                "malingshusaijingui": { "cn_name": "马铃薯鳃金龟", "infer_name": "malingshusaijingui" },
+                "tonglvyilijingui": { "cn_name": "铜绿异丽金龟", "infer_name": "tonglvyilijingui" },
+                "xiaoyunbansaijingui": { "cn_name": "小云斑鳃金龟", "infer_name": "xiaoyunbansaijingui" },
+                "zhonghuaxiaobianxijingui": { "cn_name": "中华晓扁犀金龟", "infer_name": "zhonghuaxiaobianxijingui" },
+                "dongfanglougu": { "cn_name": "东方蝼蛄", "infer_name": "dongfanglougu", "dia": [1000, 2500] },
+                "caoling": { "cn_name": "草蛉", "infer_name": "caoling", "dia": [450, 1500] },
+                "caie": { "cn_name": "小菜蛾", "infer_name": "xiaocaie", "dia": [150, 600], "cls_conf": 0.3 },
+                "shie": { "cn_name": "小石蛾", "infer_name": "xiaoshie", "cls_conf": 0.55 },
+                "jifeng": { "cn_name": "姬蜂", "infer_name": "jifeng", "dia": [800, 2500] },
+                "chie": { "cn_name": "油桐尺蠖", "infer_name": "chie", "dia": [1100, 2500] , "cls_conf": 0.5},
+                "chun": { "cn_name": "蝽", "cls_conf": 0.5},
+                "hongchun": { "cn_name": "红蝽", "cls_conf": 0.5},
+                "huangchong": { "cn_name": "蝗虫", "infer_name": "huangchong" , "cls_conf": 0.5},
+                "liechun": { "cn_name": "猎蝽", "cls_conf": 0.5},
+                "huaming": { "cn_name": "二/三化螟", "cls_conf": 0.5},
+                "saijingui": { "cn_name": "鳃金龟", "cls_conf": 0.5},
+                "huasaijingui": { "cn_name": "花鳃金龟"}, "cls_conf": 0.5,
+                "huanglijingui": {
+                  "cn_name": "黄褐异丽金龟",
+                  "infor_name": "huangheyilijingui"
+                },
+                "lvlijingui": { "cn_name": "绿丽金龟"},
+                "xijingui": { "cn_name": "犀金龟"},
+                "ming_bai": { "cn_name": "螟蛾_白", "detect_conf": 0.8,"cls_conf": 0.8 },
+                "taie": { "cn_name": "苔蛾"},
+                "yechan": { "cn_name": "叶蝉", "detect_conf": 0.8,"cls_conf": 0.8 },
+                "other": { "cn_name": "其他", "infer_name": "other" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -8,9 +8,18 @@
 import logging
 import torchvision
 import torch
-from ultralytics import YOLO
 import numpy as np
 import cv2
+from typing import Any, NamedTuple
+from script.predict.model_infer_lock import model_infer_guard
+from script.predict.model_yolo_cache import get_cached_yolo
+from script.predict.model_channel import (
+    detect_model_input_channels,
+    mps_safe_device,
+    preprocess_yolo_input,
+    scale_xyxy,
+    yolo_input_coord_scale,
+)
 
 def _pad_background_value(clip):
     """与 clip 同 dtype 的「白底」填充标量：uint8 为 255；浮点按 0~1 / 0~255 推断。"""
@@ -48,7 +57,203 @@ def _pad_tile_to_clip_square(clip, actual_clip_w, actual_clip_h, clip_size):
     return padded, off_x, off_y, pad_w, pad_h
 
 
-def get_clip(w, h, clip_size, overlap_size):
+class ClipProfile(NamedTuple):
+    """单套滑窗切片参数。"""
+
+    clip_size: int
+    overlap_size: int
+    clip_start: int = 0
+    seg_imgsz: int = 0
+
+
+class _DetectClipTile(NamedTuple):
+    """单张 detect 滑窗 tile（batch 推理单元）。"""
+
+    clip: np.ndarray
+    detect_id: str
+    clip_x1: int
+    clip_y1: int
+    clip_x2: int
+    clip_y2: int
+    actual_clip_w: int
+    actual_clip_h: int
+    pad_off_x: int
+    pad_off_y: int
+    clip_size: int
+
+
+def _prepare_detect_clip_tile(
+    image: np.ndarray,
+    clip_x1: int,
+    clip_y1: int,
+    clip_x2: int,
+    clip_y2: int,
+    clip_size: int,
+    padding: bool,
+    profile_idx: int = 0,
+) -> _DetectClipTile:
+    clip = image[clip_y1:clip_y2, clip_x1:clip_x2]
+    actual_clip_w = clip_x2 - clip_x1
+    actual_clip_h = clip_y2 - clip_y1
+    pad_off_x = pad_off_y = 0
+    if padding and (actual_clip_w < clip_size or actual_clip_h < clip_size):
+        clip, pad_off_x, pad_off_y, _pw, _ph = _pad_tile_to_clip_square(
+            clip, actual_clip_w, actual_clip_h, clip_size
+        )
+    detect_id = make_clip_detect_id(profile_idx, clip_x1, clip_y1)
+    return _DetectClipTile(
+        clip,
+        detect_id,
+        clip_x1,
+        clip_y1,
+        clip_x2,
+        clip_y2,
+        actual_clip_w,
+        actual_clip_h,
+        pad_off_x,
+        pad_off_y,
+        int(clip_size),
+    )
+
+
+def uses_clip_inference_path(
+    w: int, h: int, clip_size: int, overlap_size: int,
+) -> bool:
+    """是否对该图尺寸启用滑窗切片（与 ModelDetector.predict 判定一致）。"""
+    return bool(
+        clip_size
+        and overlap_size
+        and not (clip_size >= w and clip_size >= h)
+        and not (clip_size <= overlap_size <= 1)
+    )
+
+
+def resolve_clip_profiles(
+    *,
+    clip_size: int = 0,
+    overlap_size: int = 0,
+    clip_start: int = 0,
+    clip_profiles: list | None = None,
+) -> list[ClipProfile]:
+    """
+    解析滑窗切片配置：``clip_profiles`` 非空时优先；否则单套 ``clip_size``/``overlap_size``。
+    ``clip_start``：滑窗网格起始像素（x、y 同值）；``0`` 表示从 ``(0,0)`` 起。
+    ``clip_profiles[].seg_imgsz``：该套 YOLO ``imgsz``；``<=0`` 或未写表示推理时用外层 ``seg_imgsz``。
+    ``overlap_size: 0`` 表示整图单窗（不滑窗）；``overlap_size > 0`` 为滑窗重叠像素。
+    ``clip_size: 0`` 表示不切片、整图推理（``overlap_size`` 忽略，规范为 0）。
+    跳过 ``enable: false`` 或尺寸无效的项；若全部无效则回退顶层字段。
+    """
+    if clip_profiles:
+        out: list[ClipProfile] = []
+        for item in clip_profiles:
+            if not isinstance(item, dict):
+                continue
+            if item.get("enable") is False:
+                continue
+            cs = int(item.get("clip_size", 0) or 0)
+            os = int(item.get("overlap_size", 0) or 0)
+            st = int(item.get("clip_start", 0) or 0)
+            si = max(0, int(item.get("seg_imgsz", 0) or 0))
+            if cs == 0:
+                out.append(ClipProfile(0, 0, max(0, st), si))
+                continue
+            slide_ok = cs > 0 and os > 0
+            whole_ok = cs > 0 and os == 0
+            if slide_ok or whole_ok:
+                out.append(ClipProfile(cs, os, max(0, st), si))
+        if out:
+            return out
+    return [
+        ClipProfile(
+            int(clip_size or 0),
+            int(overlap_size or 0),
+            max(0, int(clip_start or 0)),
+            0,
+        )
+    ]
+
+
+def resolve_profile_imgsz(
+    profile: ClipProfile | tuple,
+    default_imgsz: int | None,
+    *,
+    model_default: int = 0,
+) -> int | None:
+    """单套 profile 生效的 ``imgsz``：profile 内 ``seg_imgsz`` → 调用方 default → 模型默认。"""
+    raw = 0
+    if isinstance(profile, ClipProfile):
+        raw = int(profile.seg_imgsz or 0)
+    elif len(profile) >= 4:
+        raw = max(0, int(profile[3] or 0))
+    if raw > 0:
+        return raw
+    if default_imgsz is not None and int(default_imgsz) > 0:
+        return int(default_imgsz)
+    md = int(model_default or 0)
+    return md if md > 0 else None
+
+
+def unpack_clip_profile(profile: ClipProfile | tuple) -> tuple[int, int, int]:
+    """``(clip_size, overlap_size, clip_start)``。"""
+    if isinstance(profile, ClipProfile):
+        return profile.clip_size, profile.overlap_size, profile.clip_start
+    if len(profile) >= 3:
+        return int(profile[0]), int(profile[1]), max(0, int(profile[2] or 0))
+    return int(profile[0]), int(profile[1]), 0
+
+
+def make_clip_detect_id(profile_idx: int, clip_x1: int, clip_y1: int) -> str:
+    return f"{int(profile_idx)}:{int(clip_x1)}-{int(clip_y1)}"
+
+
+def parse_clip_detect_id(detect_id: str | None) -> tuple[int, int, int] | None:
+    """
+    解析 ``detect_id`` → ``(profile_idx, clip_x1, clip_y1)``。
+    兼容旧格式 ``{x}-{y}``（profile_idx=0）。
+    """
+    if not detect_id or not isinstance(detect_id, str):
+        return None
+    s = detect_id.strip()
+    profile_idx = 0
+    if ":" in s:
+        head, s = s.split(":", 1)
+        try:
+            profile_idx = int(head)
+        except ValueError:
+            return None
+    parts = s.split("-", 1)
+    if len(parts) != 2:
+        return None
+    try:
+        return profile_idx, int(parts[0]), int(parts[1])
+    except ValueError:
+        return None
+
+
+def format_clip_slice_label_suffix(row: dict) -> str:
+    """
+    绘图标签分片序号后缀（1-based），与 ``get_clip`` 遍历顺序一致。
+    多套滑窗时为 ``#套-片``（如 ``#2-5``），单套时为 ``#5``。
+    """
+    if "clip_tile_seq" in row:
+        seq = int(row["clip_tile_seq"]) + 1
+        prof = int(row.get("clip_profile_idx", 0) or 0)
+        total = int(row.get("clip_profile_total", 1) or 1)
+        if total > 1:
+            return f" #{prof + 1}-{seq}"
+        return f" #{seq}"
+    parsed = parse_clip_detect_id(row.get("detect_id"))
+    if not parsed:
+        return ""
+    profile_idx, clip_x1, clip_y1 = parsed
+    if profile_idx > 0:
+        return f" #{profile_idx + 1}@{clip_x1}-{clip_y1}"
+    if clip_x1 or clip_y1:
+        return f" @{clip_x1}-{clip_y1}"
+    return ""
+
+
+def get_clip(w, h, clip_size, overlap_size, clip_start: int = 0):
     """
     生成切片滑窗坐标（左上、右下，右下为开区间）。
 
@@ -56,24 +261,34 @@ def get_clip(w, h, clip_size, overlap_size):
     - **只有**当某个方向的边长 > clip_size 时，该方向才需要滑窗并使用 overlap_size。
     - 当某个方向边长 <= clip_size 时，该方向只取起点 0（单窗），由上层 padding 补成正方形，
       不再在该方向引入 overlap/多窗。
+    - ``clip_start``：该方向需滑窗时，首个窗左上角从 ``clip_start`` 起（x、y 同值）；``0`` 为历史默认。
 
     例：
     - w > clip_size, h <= clip_size：x 方向滑窗，y 方向仅 j=0 一次（长边切片 + 短边 padding）
     - w <= clip_size, h <= clip_size：仅一窗 (0,0,w,h)
     """
-    # clip_size = 10, overlap_size = 2 为例
-    # x: 0,10; 8,18; 16,26 ...
+    clip_start = max(0, int(clip_start or 0))
+
     def _step(length: int) -> int:
         if length <= clip_size:
             return clip_size  # range(0, length, clip_size) 只会产生起点 0
         s = clip_size - overlap_size
         return 1 if s <= 0 else s
 
-    step_x = _step(w)
-    step_y = _step(h)
+    def _starts(length: int) -> list[int]:
+        if length <= clip_size:
+            return [0]
+        step = _step(length)
+        origin = clip_start if clip_start < length else 0
+        out: list[int] = []
+        i = origin
+        while i < length:
+            out.append(i)
+            i += step
+        return out
 
-    for i in range(0, w, step_x):
-        for j in range(0, h, step_y):
+    for i in _starts(w):
+        for j in _starts(h):
             yield i, j, min(w, i + clip_size), min(h, j + clip_size)
 
 
@@ -89,29 +304,25 @@ def ior(box1, box2):
         return 0
     return overlap_area / min(box1_s, box2_s)
 
-def enhance_contrast(img):
-    # 方法1: CLAHE（自适应直方图均衡，对局部纹理友好）
-    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    l_enhanced = clahe.apply(l)
-    lab_enhanced = cv2.merge([l_enhanced, a, b])
-    return cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2BGR)
-
 class ModelDetector:
     def __init__(
         self,
         model_path,
         conf_thresh=0.5,
         conf_merge=0.3,
+        conf_merge_draw=0.01,
         iou_threshold=0.3,
         ior_threshold=0.5,
         device=None,
         augment=False,
+        half=False,
         *,
         nms_iou: float | None = None,
         max_det: int | None = None,
         nms_agnostic: bool | None = None,
+        gray_contrast_enhance: bool = False,
+        gray_clahe_clip: float = 2.0,
+        gray_clahe_tile: int = 8,
     ):
         """
 
@@ -121,6 +332,7 @@ class ModelDetector:
         :param iou_threshold:
         :param ior_threshold:
         :param device: 设备类型 ('cuda', 'mps', 'cpu')，如果为None则自动检测
+        :param gray_contrast_enhance: 送入 YOLO 前对灰度图做 CLAHE 对比度增强（默认关）
         """
         # 自动检测设备
         if device is None:
@@ -129,16 +341,24 @@ class ModelDetector:
             self.device = device
 
         self.augment = augment
+        self.half = half
 
         logging.info(f"使用设备: {self.device}")
 
+        self.model_path = str(model_path)
+        self._infer_task: str | None = None
         # 加载模型（设备在predict时自动处理）
-        self.model = YOLO(model_path)
+        self.model = get_cached_yolo(model_path)
+        self.model_ch = detect_model_input_channels(self.model)
+        if self.model_ch == 1:
+            logging.info(f"检测模型为单通道(ch=1)，推理将以单通道灰度输入: {model_path}")
+            mps_safe_device(self.device, self.model_ch)
 
         # 整体输出置信度
         self.conf_thresh = conf_thresh
         # merge之前置信度
         self.conf_merge = conf_merge
+        self.conf_merge_draw = float(conf_merge_draw)
         self.iou_threshold = iou_threshold
         self.ior_threshold = ior_threshold
         # Ultralytics 内置 NMS 参数（与本文件里的 merge_iou iou_threshold 不同）
@@ -146,6 +366,16 @@ class ModelDetector:
         self.max_det = max_det
         # Ultralytics class-agnostic NMS（跨类别抑制）
         self.nms_agnostic = nms_agnostic
+        self.gray_contrast_enhance = bool(gray_contrast_enhance)
+        self.gray_clahe_clip = float(gray_clahe_clip)
+        self.gray_clahe_tile = int(gray_clahe_tile)
+        if self.gray_contrast_enhance:
+            logging.info(
+                "检测推理已开启灰度 CLAHE 对比度增强 (clip=%.2f, tile=%d): %s",
+                self.gray_clahe_clip,
+                self.gray_clahe_tile,
+                model_path,
+            )
 
     def _auto_detect_device(self):
         """
@@ -160,6 +390,10 @@ class ModelDetector:
             return 'mps'
         else:
             return 'cpu'
+
+    def _infer_conf(self, return_all_rows: bool) -> float:
+        """``return_all_rows`` 时用更低 ``conf_merge_draw`` 供 DRAW_FILTER 绘制。"""
+        return self.conf_merge_draw if return_all_rows else self.conf_merge
 
     def _predict(
         self,
@@ -191,7 +425,27 @@ class ModelDetector:
             kwargs["max_det"] = int(max_det)
         if nms_agnostic is not None:
             kwargs["agnostic_nms"] = bool(nms_agnostic)
-        pred = self.model.predict(image, verbose=False, device=device or self.device, augment=self.augment, **kwargs)
+        use_imgsz = int(imgsz or 0)
+        source_shape = image.shape[:2]
+        yolo_in = preprocess_yolo_input(
+            image,
+            self.model_ch,
+            gray_contrast_enhance=self.gray_contrast_enhance,
+            clahe_clip=self.gray_clahe_clip,
+            clahe_tile=self.gray_clahe_tile,
+            target_imgsz=use_imgsz,
+        )
+        sx, sy = yolo_input_coord_scale(source_shape, yolo_in)
+        with model_infer_guard(self.model_path, task=self._infer_task):
+            pred = self.model.predict(
+                yolo_in,
+                verbose=False,
+                device=mps_safe_device(device or self.device, self.model_ch),
+                augment=self.augment,
+                half=self.half,
+                conf=float(conf),
+                **kwargs,
+            )
         results = []
         if not pred or not pred[0].boxes:
             return results
@@ -202,16 +456,223 @@ class ModelDetector:
                     continue
 
                 x1, y1, x2, y2 = detection.xyxy.tolist()[0]
-                x1 = int(x1)
-                y1 = int(y1)
-                x2 = int(x2)
-                y2 = int(y2)
+                if sx != 1.0 or sy != 1.0:
+                    x1, y1, x2, y2 = scale_xyxy(x1, y1, x2, y2, sx, sy)
+                else:
+                    x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
                 results.append([x1, y1, x2, y2, box_conf, int(detection.cls.item()), detect_id])
             except Exception as e:
                 logging.error(f"parse the box {detection} error: {e}")
                 continue
 
         return results
+
+    def _predict_batch(
+        self,
+        images: list[np.ndarray],
+        detect_ids: list[str],
+        conf=0.01,
+        device=None,
+        imgsz=0,
+        overlap=0,
+        *,
+        nms_iou: float | None = None,
+        max_det: int | None = None,
+        nms_agnostic: bool | None = None,
+    ) -> list[list]:
+        """多 tile YOLO detect batch；单张时退化为 ``_predict``。"""
+        if not images:
+            return []
+        if len(images) == 1:
+            return [
+                self._predict(
+                    images[0],
+                    conf,
+                    detect_ids[0],
+                    device=device,
+                    imgsz=imgsz,
+                    overlap=overlap,
+                    nms_iou=nms_iou,
+                    max_det=max_det,
+                    nms_agnostic=nms_agnostic,
+                )
+            ]
+        kwargs: dict[str, Any] = {}
+        if imgsz:
+            kwargs["imgsz"] = imgsz
+        if overlap:
+            kwargs["overlap"] = overlap
+        if nms_iou is None:
+            nms_iou = self.nms_iou
+        if max_det is None:
+            max_det = self.max_det
+        if nms_agnostic is None:
+            nms_agnostic = self.nms_agnostic
+        if nms_iou is not None:
+            kwargs["iou"] = float(nms_iou)
+        if max_det is not None:
+            kwargs["max_det"] = int(max_det)
+        if nms_agnostic is not None:
+            kwargs["agnostic_nms"] = bool(nms_agnostic)
+        use_imgsz = int(imgsz or 0)
+        yolo_inputs = []
+        scales: list[tuple[float, float]] = []
+        for image in images:
+            source_shape = image.shape[:2]
+            yolo_in = preprocess_yolo_input(
+                image,
+                self.model_ch,
+                gray_contrast_enhance=self.gray_contrast_enhance,
+                clahe_clip=self.gray_clahe_clip,
+                clahe_tile=self.gray_clahe_tile,
+                target_imgsz=use_imgsz,
+            )
+            sx, sy = yolo_input_coord_scale(source_shape, yolo_in)
+            yolo_inputs.append(yolo_in)
+            scales.append((sx, sy))
+        with model_infer_guard(self.model_path, task=self._infer_task):
+            pred = self.model.predict(
+                yolo_inputs,
+                verbose=False,
+                device=mps_safe_device(device or self.device, self.model_ch),
+                augment=self.augment,
+                half=self.half,
+                conf=float(conf),
+                **kwargs,
+            )
+        if not isinstance(pred, list):
+            pred = [pred]
+        batch_out: list[list] = []
+        for idx, r in enumerate(pred):
+            detect_id = detect_ids[idx] if idx < len(detect_ids) else detect_ids[-1]
+            sx, sy = scales[idx] if idx < len(scales) else scales[-1]
+            rows: list = []
+            if r is not None and getattr(r, "boxes", None) is not None:
+                for detection in r.boxes:
+                    try:
+                        box_conf = detection.conf.item()
+                        if box_conf < conf:
+                            continue
+                        x1, y1, x2, y2 = detection.xyxy.tolist()[0]
+                        if sx != 1.0 or sy != 1.0:
+                            x1, y1, x2, y2 = scale_xyxy(x1, y1, x2, y2, sx, sy)
+                        else:
+                            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+                        rows.append(
+                            [
+                                x1,
+                                y1,
+                                x2,
+                                y2,
+                                box_conf,
+                                int(detection.cls.item()),
+                                detect_id,
+                            ]
+                        )
+                    except Exception as e:
+                        logging.error("parse batch box %s error: %s", detection, e)
+            batch_out.append(rows)
+        if len(batch_out) < len(images):
+            batch_out.extend([[]] * (len(images) - len(batch_out)))
+        return batch_out[: len(images)]
+
+    def _infer_detect_sliding_tiles(
+        self,
+        tiles: list[_DetectClipTile],
+        *,
+        infer_conf: float,
+        clip_batch_size: int,
+        padding: bool,
+        min_size: int,
+        max_size: int | None,
+        device,
+        nms_iou: float | None,
+        max_det: int | None,
+        nms_agnostic: bool | None,
+        all_box: list,
+        debug_clip: bool = False,
+    ) -> None:
+        bs = max(1, int(clip_batch_size or 1))
+        n_batches = (len(tiles) + bs - 1) // bs if tiles else 0
+        logging.debug(
+            "detect sliding tiles: count=%d batch_size=%d batches=%d",
+            len(tiles),
+            bs,
+            n_batches,
+        )
+        for start in range(0, len(tiles), bs):
+            chunk = tiles[start : start + bs]
+            if bs <= 1 or len(chunk) == 1:
+                batch_results = [
+                    self._predict(
+                        t.clip,
+                        conf=infer_conf,
+                        detect_id=t.detect_id,
+                        device=device,
+                        nms_iou=nms_iou,
+                        max_det=max_det,
+                        nms_agnostic=nms_agnostic,
+                    )
+                    for t in chunk
+                ]
+            else:
+                batch_results = self._predict_batch(
+                    [t.clip for t in chunk],
+                    [t.detect_id for t in chunk],
+                    conf=infer_conf,
+                    device=device,
+                    nms_iou=nms_iou,
+                    max_det=max_det,
+                    nms_agnostic=nms_agnostic,
+                )
+            for tile, results in zip(chunk, batch_results):
+                if tile.pad_off_x or tile.pad_off_y:
+                    for r in results:
+                        r[0] -= tile.pad_off_x
+                        r[1] -= tile.pad_off_y
+                        r[2] -= tile.pad_off_x
+                        r[3] -= tile.pad_off_y
+                for result in results:
+                    lr, flt, edge_min_dist = self._slice_local_box_prefilter(
+                        result,
+                        tile.actual_clip_w,
+                        tile.actual_clip_h,
+                        padding,
+                        min_size,
+                        max_size,
+                    )
+                    global_row = lr[:7] + [flt, edge_min_dist, int(tile.clip_size)]
+                    global_row[0] += tile.clip_x1
+                    global_row[1] += tile.clip_y1
+                    global_row[2] += tile.clip_x1
+                    global_row[3] += tile.clip_y1
+                    all_box.append(global_row)
+                if debug_clip:
+                    import cv2
+
+                    clip_debug = tile.clip.copy()
+                    dx, dy = tile.pad_off_x, tile.pad_off_y
+                    for result in results:
+                        lr, flt, _edge_min_dist = self._slice_local_box_prefilter(
+                            result,
+                            tile.actual_clip_w,
+                            tile.actual_clip_h,
+                            padding,
+                            min_size,
+                            max_size,
+                        )
+                        bx1, by1, bx2, by2 = lr[:4]
+                        px1, py1, px2, py2 = bx1 + dx, by1 + dy, bx2 + dx, by2 + dy
+                        color = (180, 180, 180) if flt else (0, 0, 255)
+                        cv2.rectangle(clip_debug, (px1, py1), (px2, py2), color, 2)
+                    ph, pw = clip_debug.shape[:2]
+                    window_name = (
+                        f"clip x:{tile.clip_x1}-{tile.clip_x2} "
+                        f"y:{tile.clip_y1}-{tile.clip_y2} padded:{pw}x{ph}"
+                    )
+                    cv2.imshow(window_name, clip_debug)
+                    cv2.waitKey(0)
+                    cv2.destroyWindow(window_name)
 
     def merge_iou(self, boxes):
         boxes = sorted(boxes, key=lambda x: x[4], reverse=True)
@@ -262,16 +723,17 @@ class ModelDetector:
             if ra != rb:
                 parent[rb] = ra
 
-        for i in range(n):
-            for j in range(i + 1, n):
-                if self._box_row_filtered(boxes[i]) or self._box_row_filtered(boxes[j]):
-                    continue
-                if boxes[i][6] == boxes[j][6]:
-                    continue
-                if boxes[i][5] != boxes[j][5]:
-                    continue
-                if ior(boxes[i], boxes[j]) > self.ior_threshold:
-                    union(i, j)
+        if self.ior_threshold > 0:
+            for i in range(n):
+                for j in range(i + 1, n):
+                    if self._box_row_filtered(boxes[i]) or self._box_row_filtered(boxes[j]):
+                        continue
+                    if boxes[i][6] == boxes[j][6]:
+                        continue
+                    if boxes[i][5] != boxes[j][5]:
+                        continue
+                    if ior(boxes[i], boxes[j]) > self.ior_threshold:
+                        union(i, j)
 
         clusters = {}
         for i in range(n):
@@ -293,6 +755,8 @@ class ModelDetector:
             # 使用最大值
             edge_min_dist = max(b[8] for b in group)
             merged = [ux1, uy1, ux2, uy2, max_conf, pick[5], pick[6], flt, edge_min_dist]
+            if len(pick) > 9 and pick[9] is not None:
+                merged.append(pick[9])
             filtered_boxes.append(merged)
 
         return [
@@ -307,6 +771,11 @@ class ModelDetector:
                 "detect_id": box[6],
                 "filter": bool(box[7]) if len(box) > 7 else False,
                 "edge_min_dist": (None if len(box) <= 8 or box[8] is None else float(box[8])),
+                **(
+                    {"clip_tile_size": int(box[9])}
+                    if len(box) > 9 and box[9] is not None
+                    else {}
+                ),
             }
             for box in filtered_boxes
         ]
@@ -414,15 +883,10 @@ class ModelDetector:
 
     @staticmethod
     def _parse_detect_clip_origin(detect_id):
-        if not detect_id or not isinstance(detect_id, str):
+        parsed = parse_clip_detect_id(detect_id)
+        if parsed is None:
             return None
-        parts = detect_id.split("-", 1)
-        if len(parts) != 2:
-            return None
-        try:
-            return int(parts[0]), int(parts[1])
-        except ValueError:
-            return None
+        return parsed[1], parsed[2]
 
     @staticmethod
     def _min_dist_box_to_clip_rect(x1, y1, x2, y2, clip_x1, clip_y1, clip_x2, clip_y2):
@@ -449,11 +913,18 @@ class ModelDetector:
         切片推理结果（全图坐标）到所属切片有效边界的最近距离；无法解析时返回 None。
         """
         origin = self._parse_detect_clip_origin(det.get("detect_id", ""))
-        if origin is None or not clip_size:
+        tile_cs = det.get("clip_tile_size")
+        if tile_cs is not None:
+            try:
+                tile_cs = int(tile_cs)
+            except (TypeError, ValueError):
+                tile_cs = None
+        effective_cs = tile_cs if tile_cs else clip_size
+        if origin is None or not effective_cs:
             return None
         clip_x1, clip_y1 = origin
-        clip_x2 = min(w, clip_x1 + clip_size)
-        clip_y2 = min(h, clip_y1 + clip_size)
+        clip_x2 = min(w, clip_x1 + effective_cs)
+        clip_y2 = min(h, clip_y1 + effective_cs)
         return self._min_dist_box_to_clip_rect(
             det["x1"], det["y1"], det["x2"], det["y2"],
             clip_x1, clip_y1, clip_x2, clip_y2,
@@ -515,10 +986,14 @@ class ModelDetector:
                 padding=True, pad_full_image_to_square=False,
                 nms_iou: float | None = None, max_det: int | None = None,
                 nms_agnostic: bool | None = None,
+                clip_profiles: list[ClipProfile] | None = None,
+                clip_start: int = 0,
+                clip_batch_size: int = 1,
                 debug=False, debug_clip=False,
                 min_size=5, max_size=None, edge_reject_distance=0,
                 edge_reject_conf_threshold=None,
                 device=None,
+                return_all_rows: bool = False,
                 ):
         """
         推理
@@ -533,13 +1008,41 @@ class ModelDetector:
         :param edge_reject_distance: merge 之后切片边缘距离阈值（像素），<=0 表示不按距离滤除
         :param edge_reject_conf_threshold: merge 之后与距离联合过滤的置信度上限（不含）；
             None 时使用 self.conf_thresh。若需「仅按距离、忽略置信度」可传入大于 1 的值。
+        :param clip_profiles: 多套切片；多于 1 套时依次滑窗后统一 merge
+        :param clip_start: 单套滑窗时网格起始像素（x、y 同值）；``0`` 为 ``(0,0)``
         :param debug: 调试用
         :return:
         """
         w = image.shape[1]
         h = image.shape[0]
+        if clip_profiles is not None and len(clip_profiles) > 1:
+            return self._predict_multi_clip_profiles(
+                image,
+                w,
+                h,
+                clip_profiles,
+                padding=padding,
+                pad_full_image_to_square=pad_full_image_to_square,
+                nms_iou=nms_iou,
+                max_det=max_det,
+                nms_agnostic=nms_agnostic,
+                debug=debug,
+                debug_clip=debug_clip,
+                min_size=min_size,
+                max_size=max_size,
+                edge_reject_distance=edge_reject_distance,
+                edge_reject_conf_threshold=edge_reject_conf_threshold,
+                device=device,
+                return_all_rows=return_all_rows,
+                clip_batch_size=clip_batch_size,
+            )
+        if clip_profiles is not None and len(clip_profiles) == 1:
+            clip_size, overlap_size, clip_start = unpack_clip_profile(clip_profiles[0])
+        else:
+            clip_start = max(0, int(clip_start or 0))
         all_box = []
         kwargs = {}
+        infer_conf = self._infer_conf(return_all_rows)
         if not clip_size or not overlap_size or (clip_size >= w and clip_size >= h or clip_size <= overlap_size <= 1):
             # kwargs["imgsz"] = clip_size
             # kwargs["overlap"] = overlap_size/clip_size
@@ -553,7 +1056,7 @@ class ModelDetector:
 
             results = self._predict(
                 img_infer,
-                self.conf_thresh,
+                infer_conf,
                 device=device,
                 nms_iou=nms_iou,
                 max_det=max_det,
@@ -567,80 +1070,46 @@ class ModelDetector:
                     r["y1"] = int(r["y1"]) - int(pad_off_y)
                     r["x2"] = int(r["x2"]) - int(pad_off_x)
                     r["y2"] = int(r["y2"]) - int(pad_off_y)
+            for r in results:
+                if float(r.get("conf", 0.0)) < self.conf_thresh:
+                    r["filter"] = True
+                    continue
+                w_b = max(0, int(r["x2"]) - int(r["x1"]))
+                h_b = max(0, int(r["y2"]) - int(r["y1"]))
+                if min_size and (w_b < min_size or h_b < min_size):
+                    r["filter"] = True
+                elif max_size and (w_b > max_size or h_b > max_size):
+                    r["filter"] = True
             if debug:
                 self.draw(image, results)
 
+            if return_all_rows:
+                return results
             return [r for r in results if not r.get("filter")]
 
         # 切片
-        for clip_x1, clip_y1, clip_x2, clip_y2 in get_clip(w, h, clip_size, overlap_size):
-            clip = image[clip_y1:clip_y2, clip_x1:clip_x2]
-            # 自适应直方图均衡
-            # clip = enhance_contrast(clip)
-            actual_clip_w = clip_x2 - clip_x1  # 真实切片宽度（padding 前）
-            actual_clip_h = clip_y2 - clip_y1  # 真实切片高度（padding 前）
-            pad_off_x = pad_off_y = 0
-            if padding and (actual_clip_w < clip_size or actual_clip_h < clip_size):
-                clip, pad_off_x, pad_off_y, _pw, _ph = _pad_tile_to_clip_square(
-                    clip, actual_clip_w, actual_clip_h, clip_size
-                )
-
-            results = self._predict(
-                clip,
-                conf=self.conf_merge,
-                detect_id=f"{clip_x1}-{clip_y1}",
-                device=device,
-                nms_iou=nms_iou,
-                max_det=max_det,
-                nms_agnostic=nms_agnostic,
+        tiles = [
+            _prepare_detect_clip_tile(
+                image, clip_x1, clip_y1, clip_x2, clip_y2, clip_size, padding
             )
-
-            if pad_off_x or pad_off_y:
-                for r in results:
-                    r[0] -= pad_off_x
-                    r[1] -= pad_off_y
-                    r[2] -= pad_off_x
-                    r[3] -= pad_off_y
-
-            # 校准坐标并带上 filter 标记（第 8 维）
-            for result in results:
-                lr, flt, edge_min_dist = self._slice_local_box_prefilter(
-                    result, actual_clip_w, actual_clip_h, padding, min_size, max_size,
-                )
-                global_row = lr[:7] + [flt, edge_min_dist]
-                global_row[0] += clip_x1
-                global_row[1] += clip_y1
-                global_row[2] += clip_x1
-                global_row[3] += clip_y1
-                all_box.append(global_row)
-
-            if debug_clip:
-                import cv2
-                # clip 已为填充后画布（与分片边长一致）；框坐标在「真实窗局部」系，需平移到画布上绘制
-                clip_debug = clip.copy()
-                dx, dy = pad_off_x, pad_off_y
-
-                for result in results:
-                    lr, flt, _edge_min_dist = self._slice_local_box_prefilter(
-                        result, actual_clip_w, actual_clip_h, padding, min_size, max_size,
-                    )
-                    bx1, by1, bx2, by2 = lr[:4]
-                    px1, py1, px2, py2 = bx1 + dx, by1 + dy, bx2 + dx, by2 + dy
-                    color = (180, 180, 180) if flt else (0, 0, 255)
-                    cv2.rectangle(clip_debug, (px1, py1), (px2, py2), color, 2)
-                    cv2.putText(
-                        clip_debug, f"{lr[5]}-{lr[4]:.2f}", (px1, py1 - 10),
-                        fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=color, thickness=1,
-                    )
-
-                ph, pw = clip_debug.shape[:2]
-                window_name = (
-                    f"clip x:{clip_x1}-{clip_x2} y:{clip_y1}-{clip_y2} "
-                    f"padded:{pw}x{ph} tile:{actual_clip_w}x{actual_clip_h}"
-                )
-                cv2.imshow(window_name, clip_debug)
-                cv2.waitKey(0)
-                cv2.destroyWindow(window_name)
+            for clip_x1, clip_y1, clip_x2, clip_y2 in get_clip(
+                w, h, clip_size, overlap_size, clip_start=clip_start
+            )
+        ]
+        self._infer_detect_sliding_tiles(
+            tiles,
+            infer_conf=infer_conf,
+            clip_batch_size=clip_batch_size,
+            padding=padding,
+            min_size=min_size,
+            max_size=max_size,
+            device=device,
+            nms_iou=nms_iou,
+            max_det=max_det,
+            nms_agnostic=nms_agnostic,
+            all_box=all_box,
+            debug_clip=debug_clip,
+        )
 
         results = self.merge_ior(all_box)
         results = self._apply_post_merge_edge_filter(
@@ -651,5 +1120,133 @@ class ModelDetector:
 
         if debug:
             self.draw(image, results)
+        if return_all_rows:
+            return results
+        return [r for r in results if not r.get("filter")]
+
+    def _predict_multi_clip_profiles(
+        self,
+        image,
+        w: int,
+        h: int,
+        profiles: list[ClipProfile],
+        *,
+        padding=True,
+        pad_full_image_to_square=False,
+        nms_iou: float | None = None,
+        max_det: int | None = None,
+        nms_agnostic: bool | None = None,
+        debug=False,
+        debug_clip=False,
+        min_size=5,
+        max_size=None,
+        edge_reject_distance=0,
+        edge_reject_conf_threshold=None,
+        device=None,
+        return_all_rows: bool = False,
+        clip_batch_size: int = 1,
+    ):
+        """多套切片依次推理，最后统一 merge_ior 与边缘过滤。"""
+        all_box = []
+        infer_conf = self._infer_conf(return_all_rows)
+        edge_clip_size = 0
+
+        for profile_idx, profile in enumerate(profiles):
+            clip_size, overlap_size, clip_start = unpack_clip_profile(profile)
+            if uses_clip_inference_path(w, h, clip_size, overlap_size):
+                edge_clip_size = max(edge_clip_size, int(clip_size))
+                tiles = [
+                    _prepare_detect_clip_tile(
+                        image,
+                        clip_x1,
+                        clip_y1,
+                        clip_x2,
+                        clip_y2,
+                        clip_size,
+                        padding,
+                        profile_idx=profile_idx,
+                    )
+                    for clip_x1, clip_y1, clip_x2, clip_y2 in get_clip(
+                        w, h, clip_size, overlap_size, clip_start=clip_start
+                    )
+                ]
+                self._infer_detect_sliding_tiles(
+                    tiles,
+                    infer_conf=infer_conf,
+                    clip_batch_size=clip_batch_size,
+                    padding=padding,
+                    min_size=min_size,
+                    max_size=max_size,
+                    device=device,
+                    nms_iou=nms_iou,
+                    max_det=max_det,
+                    nms_agnostic=nms_agnostic,
+                    all_box=all_box,
+                    debug_clip=debug_clip,
+                )
+                continue
+
+            pad_off_x = pad_off_y = 0
+            img_infer = image
+            if pad_full_image_to_square and w != h:
+                side = int(max(w, h))
+                img_infer, pad_off_x, pad_off_y, _pw, _ph = _pad_tile_to_clip_square(
+                    image, w, h, side
+                )
+            detect_id = make_clip_detect_id(profile_idx, 0, 0)
+            results = self._predict(
+                img_infer,
+                infer_conf,
+                detect_id=detect_id,
+                device=device,
+                nms_iou=nms_iou,
+                max_det=max_det,
+                nms_agnostic=nms_agnostic,
+            )
+            results = self._convert_result(results)
+            for r in results:
+                if pad_off_x or pad_off_y:
+                    r["x1"] = int(r["x1"]) - int(pad_off_x)
+                    r["y1"] = int(r["y1"]) - int(pad_off_y)
+                    r["x2"] = int(r["x2"]) - int(pad_off_x)
+                    r["y2"] = int(r["y2"]) - int(pad_off_y)
+                if float(r.get("conf", 0.0)) < self.conf_thresh:
+                    r["filter"] = True
+                    continue
+                w_b = max(0, int(r["x2"]) - int(r["x1"]))
+                h_b = max(0, int(r["y2"]) - int(r["y1"]))
+                if min_size and (w_b < min_size or h_b < min_size):
+                    r["filter"] = True
+                elif max_size and (w_b > max_size or h_b > max_size):
+                    r["filter"] = True
+                r["clip_tile_size"] = int(clip_size) if clip_size else None
+                row = [
+                    r["x1"],
+                    r["y1"],
+                    r["x2"],
+                    r["y2"],
+                    r["conf"],
+                    r["cls_id"],
+                    r["detect_id"],
+                    r.get("filter", False),
+                    None,
+                ]
+                if r.get("clip_tile_size"):
+                    row.append(r["clip_tile_size"])
+                all_box.append(row)
+
+        results = self.merge_ior(all_box)
+        results = self._apply_post_merge_edge_filter(
+            results,
+            w,
+            h,
+            edge_clip_size or max((cs for cs, _os in profiles), default=0),
+            edge_reject_distance=edge_reject_distance,
+            edge_reject_conf_threshold=edge_reject_conf_threshold,
+        )
+        if debug:
+            self.draw(image, results)
+        if return_all_rows:
+            return results
         return [r for r in results if not r.get("filter")]
 

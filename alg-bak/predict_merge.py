@@ -314,11 +314,12 @@ def draw_results(image, results, output_path=None):
     for r in results:
         x1, y1, x2, y2 = r["location"]
         name = r["name"]
-        score = r.get("score", 0)
+        det_conf = float(r.get("det_conf", r.get("conf", 0.0)) or 0.0)
+        cls_conf = float(r.get("cls_conf", r.get("score", det_conf)) or 0.0)
         source = r.get("source", "")
         color = colors.get(source, (180, 180, 180))
         cv2.rectangle(img_draw, (x1, y1), (x2, y2), color, 2)
-        label = f"{name} {score:.2f} [{source}]"
+        label = f"{name} {det_conf:.2f}/{cls_conf:.2f} [{source}]"
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.6
         thickness = 2

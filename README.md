@@ -6,10 +6,19 @@
 
 本目录代码为**商用专有代码**，公开仅供**技术参考**，**不构成使用授权**；未经权利人书面许可，**禁止复制、整合或用于商业用途**。若需商业应用或授权合作，请**联系著作权人**。完整条款见同目录 [`LICENSE`](LICENSE)。
 
+## 算法 JSON 配置（运维）
+
+统一多根推理配置 **`config/insect_alg_all.json`** 及字段说明见 **[算法配置说明.md](./算法配置说明.md)**（`out` 路由、detect/segment 根、`models.cls`、门限与裁切/补方参数）。物种元数据与类别合并见同目录 `config/`。
+
+代码入口：`predict_all.create_pipeline()` / `predict_all.predict()`。
+
 ## 目录说明
 
 | 文件 / 目录 | 说明 |
 |-------------|------|
+| `config/` | **静态配置与加载模块**：JSON、`cls_merge.py`、`insect_info.py`、`cls_hierarchy_util.py`（见 `config/AGENTS.md`） |
+| `config_paths.py` | 配置文件默认路径与 `resolve_insect_alg_all_path()` |
+| `predict_all.py` | **配置驱动推理**：加载 `config/insect_alg_all.json`，递归 `out` / `models.cls` |
 | `predict_merge.py` | **主融合入口**：`orig`（大虫）+ `daofeishi`（稻飞虱）+ `yumiming`（玉米螟，可选）+ `cls_12`（12 类专项）；统一输出格式，内置 IoR 去重与跨源合并。 |
 | `predict_orig.py` | 大虫单路推理：检测 `kuangxuan_0209.pt` + 多级分类与规则修正；`predict(..., device=...)`。 |
 | `predict_size_daofeishi.py` | 通用 **`PredictSize`**：切片检测 → `size.json` 尺寸过滤 → 可选分类；供稻飞虱、玉米螟、`cls_12` 等复用。 |

@@ -1,0 +1,14 @@
+[program:ai]
+directory=/data/models
+command=/home/beyond/.conda/envs/yolo11/bin/python3  /data/models/script/predict_all_gradio.py
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+priority=10
+user=root
+redirect_stderr=true
+startretries=99999
+stdout_logfile=%(here)s/../log/%(program_name)s.std
+stdout_logfile_maxbytes=10MB
+stdout_logfile_backups=50

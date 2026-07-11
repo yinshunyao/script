@@ -1,0 +1,12 @@
+{
+  "point_mode": "centroid",
+  "background_classes": [
+    "背景",
+    "background",
+    "bg",
+    "负样本",
+    "negative"
+  ],
+  "match_mode": "exact",
+  "background_assign": "nearest_foreground"
+}

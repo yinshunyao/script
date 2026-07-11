@@ -1,0 +1,14 @@
+# by ET-CS (https://github.com/ET-CS)
+# "systemctl daemon-reload" reload the config
+[Unit]
+Description=Supervisor ls
+[Service]
+Type=forking
+ExecStart=/home/beyond/.conda/envs/yolo11/bin/supervisord -c /data/models/supervisor/supervisord.conf
+ExecStop=/home/beyond/.conda/envs/yolo11/bin/supervisorctl -c /data/models/supervisor/supervisord.conf  shutdown
+ExecReload=/home/beyond/.conda/envs/yolo11/bin/supervisorctl -c /data/models/supervisor/supervisord.conf reload
+KillMode=process
+Restart=on-failure
+RestartSec=42s
+[Install]
+WantedBy=multi-user.target

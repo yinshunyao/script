@@ -3,9 +3,11 @@
 # @Detail  : 只调用分类模型做 VOC(xml) 裁剪验证：
 #            - 输入目录包含图片与同名 Pascal VOC xml
 #            - 解析 xml 的 bndbox，从图片裁剪目标
+#            - 可选：配置分割模型时，在 bbox 区域内先分割再按 polygon 抠图送分类
 #            - 调用分类模型（YOLO classification）
-#            - 比对预测类别与标签是否一致
-#            - 按类别统计，并导出混淆矩阵与「易混淆类别对」排行表（按行内混淆比例排序）
+#            - 比对预测类别与标签是否一致（中文标注 / 拼音类名自动映射，口径同 predict_all 校验）
+#            - 按类别统计（含 predict_all 同款一级/二级重点关注 top1/top2），并导出 eval_metrics
+#            - 导出混淆矩阵与「易混淆类别对」排行表（按行内混淆比例排序）
 #            - 可选落盘：误分类裁剪、分类正确裁剪（均含置信度于文件名）
 #            - 默认运行前清空 output_dir，避免与上次结果混合
 import csv
@@ -19,6 +21,7 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 
 import cv2
+import numpy as np
 
 _FILE = Path(__file__).resolve()
 _ROOT = _FILE.parents[1]
@@ -26,112 +29,51 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from script.predict.model_cls import ModelCls
-from script.insect_info import c1 as DELIVERY_C1, c2 as DELIVERY_C2
-from script.insect_cls_map_util import extract_merge_groups_from_insect_cls_map_raw
+from script.predict.model_seg import ModelSegmenter
+from script.predict_seg_lib import crop_instance_bgr_from_polygon, resolve_cls_crop_background
+from script.predict_size_validate_lib import (
+    _export_overall_summary_csv,
+    _export_stat_by_cls_csv as export_eval_stat_by_cls_csv,
+    _print_overall_stat_summary,
+    _print_stat_by_cls as print_eval_stat_by_cls,
+    build_eval_class_display_index,
+    build_eval_focus_set,
+    is_class_match,
+    load_eval_label_alias_map,
+    merge_stat_by_cls,
+    normalize_class_name,
+    parse_pascal_voc_objects,
+    sum_stat_by_cls_focus,
+)
+from script.config_paths import DEFAULT_INSECT_ALG_ALL_JSON
+from script.predict_all import load_insect_alg_all
 
 
-def _normalize_by_map(raw: str, mapping: dict[str, str] | None) -> str:
-    raw = str(raw or "").strip()
-    if not raw or not mapping:
-        return raw
-    return str(mapping.get(raw, raw))
-
-
-def normalize_class_name(
-    raw: str,
-    merge: dict[str, list[str]] | None,
-    *,
-    mapping: dict[str, str] | None = None,
-) -> str:
-    """
-    将 raw 映射到合并组 key；若不在 merge 中则返回原始名称。
-    merge 形态：{group_key: [alias1, alias2, ...]}
-    """
-    raw = _normalize_by_map(raw, mapping)
-    raw = str(raw or "").strip()
-    if not raw or not merge:
-        return raw
-    if raw in merge:
-        return raw
-    for k, aliases in merge.items():
-        if raw in (aliases or []):
-            return str(k)
-    return raw
-
-
-def is_class_match(
-    pred_raw: str,
-    gt_raw: str,
-    merge: dict[str, list[str]] | None,
-    *,
-    pred_name_map: dict[str, str] | None = None,
-    xml_name_map: dict[str, str] | None = None,
-) -> bool:
-    """
-    仅用于“分类裁剪验证”的标签一致性判断：
-    - 允许分别对预测名 / xml 标注名做等价映射（映射到 canonical）
-    - 两边再做 normalize_class_name
-    - normalize 后完全一致则算正确
-    """
-    pred_raw = str(pred_raw or "").strip()
-    gt_raw = str(gt_raw or "").strip()
-    if not pred_raw or not gt_raw:
-        return False
-    pred_norm = normalize_class_name(pred_raw, merge, mapping=pred_name_map)
-    gt_norm = normalize_class_name(gt_raw, merge, mapping=xml_name_map)
-    return pred_norm == gt_norm
-
-
-def load_other_merge_groups_from_insect_cls_map(cls_map_raw: dict | None = None) -> dict[str, list[str]]:
-    """
-    从 ``insect_cls_map.cls_map``（或传入的 ``cls_map_raw``）提取 “other*” 的合并规则，供评估统计/混淆矩阵做等价合并。
-
-    约定：
-    - key 以 "other" 开头（如 other_gui / other_small / other_yee）
-    - value 可能是：
-      - dict：其 keys 为可能出现于标注/预测中的子类名（权重 value 在评估里不使用）
-      - list：列表元素为子类名
-    返回 merge 形态：{group_key: [alias1, alias2, ...]}
-    """
+def _load_alg_config_json(path: str | Path | None) -> dict | None:
+    if not path:
+        return None
     try:
-        return extract_merge_groups_from_insect_cls_map_raw(
-            cls_map_raw, only_other_prefix=True
-        )
-    except Exception as e:  # noqa: BLE001 — 评估脚本缺配置时降级为不合并
-        logging.warning("读取 insect_cls_map 失败，将不启用 other* 合并: %s", e)
-        return {}
+        return load_insect_alg_all(path)
+    except (OSError, ValueError, json.JSONDecodeError) as e:
+        logging.warning("读取 insect_alg_all 失败 %s: %s", path, e)
+        return None
 
 
-def parse_pascal_voc_objects(xml_path: str) -> list[dict]:
-    """读取 VOC xml，返回 object 列表：name, x1,y1,x2,y2（int）。"""
-    tree = ET.parse(xml_path)
-    root = tree.getroot()
-    out: list[dict] = []
-    for obj in root.findall("object"):
-        name_el = obj.find("name")
-        if name_el is None or not name_el.text:
-            continue
-        name = name_el.text.strip()
-        bnd = obj.find("bndbox")
-        if bnd is None:
-            continue
-
-        def _int(tag: str) -> int:
-            el = bnd.find(tag)
-            if el is None or el.text is None:
-                raise ValueError(f"missing {tag}")
-            return int(float(el.text.strip()))
-
-        out.append(
-            {
-                "name": name,
-                "x1": _int("xmin"),
-                "y1": _int("ymin"),
-                "x2": _int("xmax"),
-                "y2": _int("ymax"),
-            }
-        )
-    return out
+def _build_eval_class_merge(
+    base: dict[str, list[str]] | None,
+    *,
+    insect_wildcard: bool = True,
+) -> dict[str, list[str]] | None:
+    """评估用类别合并表（与 ``predict_all.build_eval_class_merge`` 口径一致）。"""
+    if base is None and not insect_wildcard:
+        return None
+    out: dict[str, list[str]] = dict(base or {})
+    if insect_wildcard:
+        aliases = [str(a).strip() for a in (out.get("insect") or []) if str(a).strip()]
+        if "*" not in aliases:
+            aliases.append("*")
+        out["insect"] = aliases
+    return out or None
 
 
 def _collect_images(input_path: str) -> tuple[Path, list[Path]]:
@@ -164,6 +106,146 @@ def _safe_crop_xyxy(img_bgr, x1: int, y1: int, x2: int, y2: int):
     return crop
 
 
+def _expand_xyxy_pad(
+    x1: int,
+    y1: int,
+    x2: int,
+    y2: int,
+    pad_ratio: float,
+    img_w: int,
+    img_h: int,
+) -> tuple[int, int, int, int]:
+    """按外接框长边比例外扩，并裁剪到图像范围内。"""
+    bw = max(1, int(x2) - int(x1))
+    bh = max(1, int(y2) - int(y1))
+    pad = int(round(max(bw, bh) * float(pad_ratio)))
+    nx1 = max(0, int(x1) - pad)
+    ny1 = max(0, int(y1) - pad)
+    nx2 = min(int(img_w), int(x2) + pad)
+    ny2 = min(int(img_h), int(y2) + pad)
+    if nx2 <= nx1:
+        nx2 = min(img_w, nx1 + 1)
+    if ny2 <= ny1:
+        ny2 = min(img_h, ny1 + 1)
+    return nx1, ny1, nx2, ny2
+
+
+def _seg_det_area(d: dict) -> float:
+    """分割实例面积：优先 polygon，否则用外接框。"""
+    poly = d.get("polygon")
+    if poly and len(poly) >= 3:
+        try:
+            pts = np.asarray(poly, dtype=np.float32).reshape(-1, 1, 2)
+            area = float(cv2.contourArea(pts))
+            if area > 0:
+                return area
+        except (TypeError, ValueError, cv2.error):
+            pass
+    try:
+        x1, y1, x2, y2 = (
+            int(d["x1"]),
+            int(d["y1"]),
+            int(d["x2"]),
+            int(d["y2"]),
+        )
+    except (KeyError, TypeError, ValueError):
+        return 0.0
+    if x2 <= x1 or y2 <= y1:
+        return 0.0
+    return float((x2 - x1) * (y2 - y1))
+
+
+def _pick_largest_seg_det(dets: list[dict]) -> dict | None:
+    """在 bbox 外扩区域内的分割结果中，取面积最大的实例。"""
+    best: dict | None = None
+    best_area = 0.0
+    best_conf = -1.0
+    for d in dets or []:
+        if d.get("filter"):
+            continue
+        area = _seg_det_area(d)
+        if area <= 0:
+            continue
+        conf = float(d.get("conf", 0.0) or 0.0)
+        if area > best_area or (area == best_area and conf > best_conf):
+            best_area = area
+            best_conf = conf
+            best = d
+    return best
+
+
+def _crop_for_cls_from_xml_bbox(
+    img_bgr,
+    x1: int,
+    y1: int,
+    x2: int,
+    y2: int,
+    *,
+    segmenter: ModelSegmenter | None = None,
+    seg_bbox_pad_ratio: float = 0.1,
+    seg_polygon_pad_ratio: float = 0.05,
+    seg_crop_background: tuple[int, int, int] | None = None,
+    seg_imgsz: int = 0,
+    seg_nms_iou: float | None = None,
+) -> tuple[np.ndarray | None, bool]:
+    """
+    从 xml bbox 得到送分类的裁剪图。
+
+    - ``segmenter is None``：矩形 bbox 裁剪（原行为）。
+    - 已配置分割模型：在 bbox 外扩区域内分割，按 polygon 抠图；失败时回退 bbox 裁剪。
+
+    返回 ``(crop_bgr, seg_refined)``，``seg_refined`` 表示是否采用了分割 polygon。
+    """
+    bbox_crop = _safe_crop_xyxy(img_bgr, x1, y1, x2, y2)
+    if segmenter is None:
+        return bbox_crop, False
+    if bbox_crop is None:
+        return None, False
+
+    h_img, w_img = img_bgr.shape[:2]
+    px1, py1, px2, py2 = _expand_xyxy_pad(
+        x1, y1, x2, y2, seg_bbox_pad_ratio, w_img, h_img
+    )
+    region = _safe_crop_xyxy(img_bgr, px1, py1, px2, py2)
+    if region is None:
+        return bbox_crop, False
+
+    rh, rw = region.shape[:2]
+    predict_kwargs: dict = {
+        "clip_size": max(rw, rh) + 64,
+        "overlap_size": 1,
+        "padding": True,
+    }
+    if seg_imgsz > 0:
+        predict_kwargs["imgsz"] = int(seg_imgsz)
+    if seg_nms_iou is not None:
+        predict_kwargs["nms_iou"] = float(seg_nms_iou)
+
+    try:
+        dets = segmenter.predict(region, **predict_kwargs)
+    except Exception as e:
+        logging.warning("bbox 区域分割失败，回退矩形裁剪: %s", e)
+        return bbox_crop, False
+
+    best = _pick_largest_seg_det(dets)
+    if best is None:
+        return bbox_crop, False
+
+    poly = list(best.get("polygon") or [])
+    if len(poly) < 3:
+        return bbox_crop, False
+
+    refined = crop_instance_bgr_from_polygon(
+        region,
+        poly,
+        pad_ratio=seg_polygon_pad_ratio,
+        background_bgr=seg_crop_background,
+    )
+    if refined is None or refined.size == 0:
+        return bbox_crop, False
+    return refined, True
+
+
 def _ensure_dir(p: str) -> None:
     os.makedirs(p, exist_ok=True)
 
@@ -186,10 +268,13 @@ def _crop_export_stem(rel_path: Path, obj_index: int, pred: dict | None) -> str:
     return f"{rel_path.stem}__obj{obj_index:03d}__conf{conf:.3f}.jpg"
 
 
+_FS_UNSAFE_SEGMENT_CHARS = r'\/:*?"<>|' + "\x00"
+
+
 def _fs_safe_segment(name: str, *, max_len: int = 160) -> str:
     """目录名片段：去掉路径分隔符与非法字符，避免无法创建目录。"""
     s = str(name or "").strip()
-    for ch in r'\/:*?"<>|\x00':
+    for ch in _FS_UNSAFE_SEGMENT_CHARS:
         s = s.replace(ch, "_")
     s = s.strip(" .")
     if not s:
@@ -224,66 +309,6 @@ def _imwrite_bgr(out_path: str, img_bgr) -> bool:
         logging.warning("裁剪图写入失败 %s: %s", out_path, e)
         return False
     return True
-
-
-def _export_stat_by_cls_csv(out_dir: str, stat_by_cls: dict[str, dict[str, int]]) -> None:
-    _ensure_dir(out_dir)
-    out_path = os.path.join(out_dir, "stat_by_class.csv")
-    headers = [
-        "class_norm",
-        "gt",
-        "pred",
-        "tp",
-        "report_rate",
-        "fn",
-        "miss_rate",
-        "fp",
-        "fp_rate",
-        "combined_dev_rate",
-    ]
-    rows = []
-    for cls_name, s in stat_by_cls.items():
-        gt_n = int(s.get("gt", 0))
-        pred_n = int(s.get("pred", 0))
-        tp_n = int(s.get("tp", 0))
-        fn_n = int(s.get("fn", 0))
-        fp_n = int(s.get("fp", 0))
-        report_rate = (float(tp_n) / float(gt_n)) if gt_n > 0 else 0.0
-        miss_rate = (float(fn_n) / float(gt_n)) if gt_n > 0 else 0.0
-        fp_rate = (float(fp_n) / float(pred_n)) if pred_n > 0 else 0.0
-        combined_dev_rate = miss_rate + fp_rate
-        rows.append(
-            {
-                "class_norm": str(cls_name),
-                "gt": gt_n,
-                "pred": pred_n,
-                "tp": tp_n,
-                "report_rate": round(report_rate, 6),
-                "fn": fn_n,
-                "miss_rate": round(miss_rate, 6),
-                "fp": fp_n,
-                "fp_rate": round(fp_rate, 6),
-                "combined_dev_rate": round(combined_dev_rate, 6),
-            }
-        )
-    # 排序优先级：
-    # 1) 综合偏差率 combined_dev_rate（漏检率+误报率）：低 -> 高
-    # 2) 漏报率 miss_rate：低 -> 高
-    # 3) 误报率 fp_rate：低 -> 高
-    # 再按 support(gt) 高 -> 低，最后按类别名升序，保证稳定
-    rows.sort(
-        key=lambda r: (
-            float(r["combined_dev_rate"]),
-            float(r["miss_rate"]),
-            float(r["fp_rate"]),
-            -int(r["gt"]),
-            str(r["class_norm"]),
-        )
-    )
-    with open(out_path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=headers)
-        w.writeheader()
-        w.writerows(rows)
 
 
 def _export_confusion_csv(out_dir: str, cm: dict[tuple[str, str], int]) -> None:
@@ -399,171 +424,24 @@ def _print_confusion_pairs_top(
         )
 
 
-def _disp_w(s: str) -> int:
-    # 终端显示宽度：中日韩宽字符按 2 计
-    import unicodedata
-
-    w = 0
-    for ch in str(s):
-        if unicodedata.east_asian_width(ch) in ("W", "F"):
-            w += 2
-        else:
-            w += 1
-    return w
-
-
-def _ljust_disp(s: str, width: int) -> str:
-    pad = max(0, width - _disp_w(s))
-    return str(s) + (" " * pad)
-
-
-def _rjust_disp(s: str, width: int) -> str:
-    pad = max(0, width - _disp_w(s))
-    return (" " * pad) + str(s)
-
-
-def _print_stat_by_cls(
-    title: str,
-    stat_by_cls: dict[str, dict[str, int]],
-    *,
-    focus: frozenset[str] | None = None,
-) -> None:
-    """
-    只影响“按类别统计”的打印过滤，不影响统计累积/CSV/混淆矩阵等其它流程。
-
-    :param focus: 若为 None 或空集合，则全量类别打印；否则仅打印 focus 内的类别（类别名为归一后的 class_norm）。
-    """
-    if not stat_by_cls:
-        return
-    headers = [
-        "类别(归一)",
-        "标签数",
-        "预测数",
-        "正确TP",
-        "报出率",
-        "漏报FN",
-        "漏报率",
-        "误报FP",
-        "误报率",
-        "综合偏差率",
-    ]
-
-    focus_set = frozenset(str(x).strip() for x in (focus or []) if str(x).strip())
-
-    rows_with_sort: list[tuple[float, float, float, int, str, list[str]]] = []  # combined_dev, miss, fp, gt, name, row
-    total = {"gt": 0, "pred": 0, "tp": 0, "fn": 0, "fp": 0}
-    for cls_name in stat_by_cls.keys():
-        if focus_set and str(cls_name) not in focus_set:
-            continue
-        s = stat_by_cls[cls_name]
-        gt_n = int(s.get("gt", 0))
-        pred_n = int(s.get("pred", 0))
-        tp_n = int(s.get("tp", 0))
-        fn_n = int(s.get("fn", 0))
-        fp_n = int(s.get("fp", 0))
-
-        report_rate = (float(tp_n) / float(gt_n)) if gt_n > 0 else 0.0
-        miss_rate = (float(fn_n) / float(gt_n)) if gt_n > 0 else 0.0
-        fp_rate = (float(fp_n) / float(pred_n)) if pred_n > 0 else 0.0
-        combined_dev_rate = miss_rate + fp_rate
-
-        row = (
-            [
-                str(cls_name),
-                str(gt_n),
-                str(pred_n),
-                str(tp_n),
-                f"{report_rate*100:.2f}%",
-                str(fn_n),
-                f"{miss_rate*100:.2f}%",
-                str(fp_n),
-                f"{fp_rate*100:.2f}%",
-                f"{combined_dev_rate*100:.2f}%",
-            ]
-        )
-        rows_with_sort.append((float(combined_dev_rate), float(miss_rate), float(fp_rate), int(gt_n), str(cls_name), row))
-        total["gt"] += gt_n
-        total["pred"] += pred_n
-        total["tp"] += tp_n
-        total["fn"] += fn_n
-        total["fp"] += fp_n
-
-    rows_with_sort.sort(
-        key=lambda x: (
-            x[0],  # combined_dev_rate asc（越低越好）
-            x[1],  # miss_rate asc
-            x[2],  # fp_rate asc
-            -x[3],  # support desc
-            x[4],  # class name asc
-        )
-    )
-    rows = [r for _acc, _miss, _fp, _gt, _name, r in rows_with_sort]
-
-    total_gt = int(total["gt"])
-    total_pred = int(total["pred"])
-    total_fn = int(total["fn"])
-    total_fp = int(total["fp"])
-    total_miss_r = (float(total_fn) / float(total_gt)) if total_gt > 0 else 0.0
-    total_fp_r = (float(total_fp) / float(total_pred)) if total_pred > 0 else 0.0
-    total_combined_dev = total_miss_r + total_fp_r
-    all_lines = [headers] + rows + [
-        [
-            "合计",
-            str(total_gt),
-            str(total_pred),
-            str(total["tp"]),
-            "",
-            str(total_fn),
-            "",
-            str(total_fp),
-            "",
-            f"{total_combined_dev*100:.2f}%",
-        ]
-    ]
-    widths = [0] * len(headers)
-    for line in all_lines:
-        for i, cell in enumerate(line):
-            widths[i] = max(widths[i], _disp_w(str(cell)))
-
-    def _fmt_line(items: list[str]) -> str:
-        out = []
-        for i, it in enumerate(items):
-            if i == 0:
-                out.append(_ljust_disp(it, widths[i]))
-            else:
-                out.append(_rjust_disp(it, widths[i]))
-        return " | ".join(out)
-
-    print(f"{title}:")
-    print(_fmt_line(headers))
-    print("-+-".join("-" * w for w in widths))
-    for r in rows:
-        print(_fmt_line([str(x) for x in r]))
-    print("-+-".join("-" * w for w in widths))
-    print(_fmt_line(all_lines[-1]))
-
-
 if __name__ == "__main__":
+    # /Users/shunyaoyin/miniconda310/miniconda3/envs/yolo11/bin/python3 /Users/shunyaoyin/Documents/code/ai-company/insect/script/predict_cls_validate_from_xml.py
     logging.basicConfig(level=logging.INFO)
+    from script.predict_all import (
+        compute_competition_counting_summary,
+        print_competition_counting_summary,
+        resolve_competition_counting_focus,
+        resolve_validation_focus_config,
+    )
 
     # ----------------------- 需要你改的参数 -----------------------
     # 输入：图片 + 同名 xml（Pascal VOC）
-    input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/比赛-北京"
-    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-标准测试集"
-    # input_path = "/Users/shunyaoyin/Documents/code/datasets/insect-data/test-data/dachong-测试数据集"
+    input_path = "/Volumes/shunyao-h1/训练数据/测试集/北京设备全标注"
     # 分类模型（Ultralytics YOLO classification）
     # cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫训练总结/20260424-all-large/best.pt"
-    cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v2-20260428-all-large/best.pt"
-    # v4
-    # cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v4-cls/temp.pt"
-    # v5
-    cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v5-cls/best.pt"
-    # v6
-    cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v6-cls/temp.pt"
-    # v7
-    cls_model_path = "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v7-cls/best.pt"
+    cls_model_path = "/Volumes/shunyao-h1/models-test/cls-v3.5-split/cls-3.5.2.pt"
     # 输出
-    output_dir = input_path + "-v7"
+    output_dir = input_path + "-c3.5.2"
     # 只打印关注类别（可选）：仅影响“按类别统计”的打印，不影响统计与 CSV/混淆矩阵落盘
     # 例：FOCUS_CLASS_NAMES = ("bazidilaohu", "caodiming")
     # FOCUS_CLASS_NAMES: tuple[str, ...] | None = (
@@ -572,30 +450,31 @@ if __name__ == "__main__":
     #     "erhuaming",  "laoshinianchong", "laoshinianchong", "feihuang",
     #     "daofeishi", "hefeishi"
     # )
-    FOCUS_CLASS_NAMES = None
+    FOCUS_CLASS_NAMES: tuple[str, ...] | None = None
 
+    # 按类统计排序与导出（口径同 predict_all 校验）
+    SORT_STAT_BY_ACC = True
+    STANDARD_EVAL_SUBDIR = "eval_metrics"
 
     # 类别归一（可选）：用于“标签一致性判断”和最终统计的类名归一
-    # 说明：和 `script/predict_size_validate.py` 一样，key 为归一名，values 为别名列表。
-    CLASS_MERGE_TO_GROUPS: dict[str, list[str]] | None = (
-        load_other_merge_groups_from_insect_cls_map() or None
-    )
-    # 名称等价映射（可选）：用于解决“xml 标注名”和“模型预测名”命名不一致的问题。
-    # 这两个 dict 的 value 应该是同一个 canonical（标准名）。
-    #
-    # 例：
-    # XML_NAME_TO_CANON = {"灰飞虱": "huifeishi", "白背飞虱": "baibeifeishi"}
-    # PRED_NAME_TO_CANON = {"baifeifeishi": "baibeifeishi"}  # 模型输出别名 -> 标准名
-    XML_NAME_TO_CANON: dict[str, str] | None = {
-        "dongfangzhanchong": "dongfangnianchong",
-        "laoshizhanchong": "laoshinianchong",
-        "baibeifeishi": "daofeishi",
-        # "daofeishi": "daofeishi",
-        "hefeishi": "daofeishi",
-        # "dawen": "wen",
-        "huifeishi": "daofeishi",
-    }
-    PRED_NAME_TO_CANON: dict[str, str] | None = None
+    # 说明：和 `script/predict_size_validate_lib.py` 中 merge 语义一样，key 为归一名，values 为别名列表。
+    CLASS_MERGE_TO_GROUPS: dict[str, list[str]] | None = None
+    # 中文/拼音自动映射（默认开启）：从 insect_info + insect_alg_all 构建，
+    # 使 xml 中文 <name> 与模型拼音 class_name 可对齐（口径同 predict_all 校验）。
+    INSECT_ALG_ALL_JSON: str | Path | None = DEFAULT_INSECT_ALG_ALL_JSON
+    EVAL_USE_CN_PINYIN_ALIAS = True
+    EVAL_INSECT_WILDCARD = True
+
+    # 可选分割精炼：None 时保持原流程（xml bbox 矩形裁剪后直接分类）
+    # 配置路径时，在 bbox 外扩区域内先跑分割，再按 polygon 抠图送分类
+    SEG_MODEL_PATH: str | None = "/Volumes/shunyao-h1/models-test/seg-v3.8/seg-3.8.3.pt"
+    # SEG_MODEL_PATH = "/path/to/seg/best.pt"
+    seg_conf_thresh: float = 0.25
+    seg_imgsz: int = 960
+    seg_nms_iou: float | None = 0.5
+    seg_bbox_pad_ratio: float = 0.1
+    seg_polygon_pad_ratio: float = 0.05
+    seg_crop_background: str | list[int] | None = "white"
 
     # 分类预处理：是否将裁剪补成白底正方形（训练若是白边正方形，建议 True）
     cls_pad_square: bool = True
@@ -616,6 +495,71 @@ if __name__ == "__main__":
         _clear_run_output_dir(output_dir)
     _ensure_dir(output_dir)
 
+    label_alias_map: dict[str, str] | None = (
+        load_eval_label_alias_map(alg_config_path=INSECT_ALG_ALL_JSON)
+        if EVAL_USE_CN_PINYIN_ALIAS
+        else None
+    )
+    if label_alias_map:
+        print(f"标签别名映射已加载，条目数={len(label_alias_map)}")
+    class_merge_eval = _build_eval_class_merge(
+        CLASS_MERGE_TO_GROUPS,
+        insect_wildcard=EVAL_INSECT_WILDCARD,
+    )
+    alg_config = _load_alg_config_json(INSECT_ALG_ALL_JSON)
+    validation_focus = resolve_validation_focus_config(alg_config)
+    eval_class_display_index = build_eval_class_display_index(alg_config=alg_config)
+    report_focus = (
+        build_eval_focus_set(
+            validation_focus.report_classes,
+            merge=class_merge_eval,
+            label_alias_map=label_alias_map,
+        )
+        if validation_focus.report_classes
+        else None
+    )
+    top1_focus = (
+        build_eval_focus_set(
+            validation_focus.top1_classes,
+            merge=class_merge_eval,
+            label_alias_map=label_alias_map,
+        )
+        if validation_focus.top1_classes
+        else frozenset()
+    )
+    top2_focus = (
+        build_eval_focus_set(
+            validation_focus.top2_classes,
+            merge=class_merge_eval,
+            label_alias_map=label_alias_map,
+        )
+        if validation_focus.top2_classes
+        else frozenset()
+    )
+    top3_focus = (
+        build_eval_focus_set(
+            validation_focus.top3_classes,
+            merge=class_merge_eval,
+            label_alias_map=label_alias_map,
+        )
+        if validation_focus.top3_classes
+        else frozenset()
+    )
+    competition_focus = resolve_competition_counting_focus(
+        validation_focus,
+        class_merge=class_merge_eval,
+        label_alias_map=label_alias_map,
+    )
+    optional_focus = (
+        build_eval_focus_set(
+            FOCUS_CLASS_NAMES,
+            merge=class_merge_eval,
+            label_alias_map=label_alias_map,
+        )
+        if FOCUS_CLASS_NAMES
+        else report_focus
+    )
+
     classifier = ModelCls(
         model_path=cls_model_path,
         device=None,
@@ -623,12 +567,37 @@ if __name__ == "__main__":
         gray_binarize=cls_gray_binarize,
     )
 
+    segmenter: ModelSegmenter | None = None
+    seg_mask_bg = resolve_cls_crop_background(seg_crop_background)
+    seg_path = str(SEG_MODEL_PATH or "").strip()
+    if seg_path:
+        segmenter = ModelSegmenter(
+            model_path=seg_path,
+            conf_thresh=float(seg_conf_thresh),
+            imgsz=int(seg_imgsz or 0),
+            nms_iou=seg_nms_iou,
+        )
+        print(
+            f"已启用分割精炼: {seg_path}  "
+            f"imgsz={seg_imgsz}  bbox_pad={seg_bbox_pad_ratio}  "
+            f"polygon_pad={seg_polygon_pad_ratio}"
+        )
+    else:
+        print("未配置分割模型，使用 xml bbox 矩形裁剪（原流程）")
+
     stat_by_cls: dict[str, dict[str, int]] = {}
 
     def _inc(cls_norm: str, key: str, n: int = 1) -> None:
         cls_norm = str(cls_norm or "")
         if cls_norm not in stat_by_cls:
-            stat_by_cls[cls_norm] = {"gt": 0, "pred": 0, "tp": 0, "fn": 0, "fp": 0}
+            stat_by_cls[cls_norm] = {
+                "gt": 0,
+                "pred": 0,
+                "tp": 0,
+                "fn": 0,
+                "fp": 0,
+                "cls_err": 0,
+            }
         stat_by_cls[cls_norm][key] = int(stat_by_cls[cls_norm].get(key, 0)) + int(n)
 
     cm: defaultdict[tuple[str, str], int] = defaultdict(int)  # (gt_norm, pred_norm) -> count
@@ -636,6 +605,8 @@ if __name__ == "__main__":
     img_with_xml = 0
     obj_total = 0
     obj_skipped = 0
+    obj_seg_refined = 0
+    obj_seg_fallback_bbox = 0
 
     for idx, img_path in enumerate(image_files, 1):
         img = cv2.imread(str(img_path))
@@ -664,10 +635,27 @@ if __name__ == "__main__":
                 obj_skipped += 1
                 continue
 
-            crop = _safe_crop_xyxy(img, g["x1"], g["y1"], g["x2"], g["y2"])
+            crop, seg_refined = _crop_for_cls_from_xml_bbox(
+                img,
+                g["x1"],
+                g["y1"],
+                g["x2"],
+                g["y2"],
+                segmenter=segmenter,
+                seg_bbox_pad_ratio=seg_bbox_pad_ratio,
+                seg_polygon_pad_ratio=seg_polygon_pad_ratio,
+                seg_crop_background=seg_mask_bg,
+                seg_imgsz=seg_imgsz,
+                seg_nms_iou=seg_nms_iou,
+            )
             if crop is None:
                 obj_skipped += 1
                 continue
+            if segmenter is not None:
+                if seg_refined:
+                    obj_seg_refined += 1
+                else:
+                    obj_seg_fallback_bbox += 1
 
             obj_total += 1
             per_img_total += 1
@@ -679,13 +667,17 @@ if __name__ == "__main__":
 
             gt_norm = (
                 normalize_class_name(
-                    gt_raw, CLASS_MERGE_TO_GROUPS, mapping=XML_NAME_TO_CANON
+                    gt_raw,
+                    class_merge_eval,
+                    label_alias_map=label_alias_map,
                 )
                 or gt_raw
             )
             pred_norm = (
                 normalize_class_name(
-                    pred_raw, CLASS_MERGE_TO_GROUPS, mapping=PRED_NAME_TO_CANON
+                    pred_raw,
+                    class_merge_eval,
+                    label_alias_map=label_alias_map,
                 )
                 or pred_raw
             )
@@ -696,9 +688,9 @@ if __name__ == "__main__":
                 is_class_match(
                     pred_raw,
                     gt_raw,
-                    CLASS_MERGE_TO_GROUPS,
-                    pred_name_map=PRED_NAME_TO_CANON,
-                    xml_name_map=XML_NAME_TO_CANON,
+                    class_merge_eval,
+                    None,
+                    label_alias_map=label_alias_map,
                 )
             )
             if ok:
@@ -761,40 +753,135 @@ if __name__ == "__main__":
             f"correct={per_img_correct}  wrong={per_img_wrong}"
         )
 
-    overall_report_rate = (float(sum_tp) / float(sum_gt)) if sum_gt > 0 else 0.0
-    overall_miss_rate = (float(sum_fn) / float(sum_gt)) if sum_gt > 0 else 0.0
-    overall_fp_rate = (float(sum_fp) / float(sum_gt)) if sum_gt > 0 else 0.0
-    print("======== 分类模型 VOC 裁剪验证汇总 ========")
+    print("======== 分类模型 VOC 裁剪验证 ========")
+    seg_line = ""
+    if segmenter is not None:
+        seg_line = (
+            f"  seg_polygon={obj_seg_refined}  seg_fallback_bbox={obj_seg_fallback_bbox}"
+        )
     print(
-        f"images_with_xml={img_with_xml}  obj_total={obj_total}  obj_skipped={obj_skipped}  "
-        f"标签(gt)={sum_gt}  正确TP={sum_tp}  漏报FN={sum_fn}  误报FP={sum_fp}  "
-        f"报出率={overall_report_rate*100:.2f}%  漏报率={overall_miss_rate*100:.2f}%  "
-        f"误报率={overall_fp_rate*100:.2f}%"
+        f"images_with_xml={img_with_xml}  obj_total={obj_total}  obj_skipped={obj_skipped}"
+        f"{seg_line}"
     )
 
-    _print_stat_by_cls("按类别统计", stat_by_cls, focus=frozenset(FOCUS_CLASS_NAMES or []))
+    stat_by_cls_merged = merge_stat_by_cls(
+        dict(stat_by_cls),
+        merge=class_merge_eval,
+        label_alias_map=label_alias_map,
+    )
+    stat_total = {
+        "tp": int(sum_tp),
+        "fp": int(sum_fp),
+        "fn": int(sum_fn),
+        "cls_err": 0,
+        "geom_pairs": int(sum_gt),
+    }
+    _print_overall_stat_summary("分类裁剪验证汇总", stat_total)
+    print_eval_stat_by_cls(
+        "按合并类统计",
+        stat_by_cls_merged,
+        sort_by_acc=SORT_STAT_BY_ACC,
+        class_display_index=eval_class_display_index,
+        focus=optional_focus,
+    )
+    _print_overall_stat_summary(
+        "一级重点关注(top1)汇总",
+        sum_stat_by_cls_focus(stat_by_cls_merged, top1_focus),
+    )
+    print_eval_stat_by_cls(
+        "一级重点关注(top1)按类统计",
+        stat_by_cls_merged,
+        sort_by_acc=SORT_STAT_BY_ACC,
+        class_display_index=eval_class_display_index,
+        focus=top1_focus,
+    )
+    _print_overall_stat_summary(
+        "二级重点关注(top2)汇总",
+        sum_stat_by_cls_focus(stat_by_cls_merged, top2_focus),
+    )
+    print_eval_stat_by_cls(
+        "二级重点关注(top2)按类统计",
+        stat_by_cls_merged,
+        sort_by_acc=SORT_STAT_BY_ACC,
+        class_display_index=eval_class_display_index,
+        focus=top2_focus,
+    )
+    _print_overall_stat_summary(
+        "三级重点关注(top3)汇总",
+        sum_stat_by_cls_focus(stat_by_cls_merged, top3_focus),
+    )
+    print_eval_stat_by_cls(
+        "三级重点关注(top3)按类统计",
+        stat_by_cls_merged,
+        sort_by_acc=SORT_STAT_BY_ACC,
+        class_display_index=eval_class_display_index,
+        focus=top3_focus,
+    )
+    counting_summary = compute_competition_counting_summary(
+        stat_by_cls_merged,
+        competition_focus or frozenset(),
+        run_model=validation_focus.run_model,
+    )
+    print_competition_counting_summary(
+        counting_summary,
+        class_display_index=eval_class_display_index,
+    )
 
-    def _normalize_delivery_focus(names: set[str]) -> frozenset[str]:
-        out: set[str] = set()
-        for n in names:
-            raw = str(n or "").strip()
-            if not raw:
-                continue
-            out.add(raw)
-            out.add(normalize_class_name(raw, CLASS_MERGE_TO_GROUPS, mapping=XML_NAME_TO_CANON))
-            out.add(normalize_class_name(raw, CLASS_MERGE_TO_GROUPS, mapping=PRED_NAME_TO_CANON))
-        return frozenset(x for x in out if str(x).strip())
+    eval_root = os.path.join(output_dir, STANDARD_EVAL_SUBDIR)
+    _export_overall_summary_csv(eval_root, "all", stat_total)
+    export_eval_stat_by_cls_csv(
+        eval_root,
+        "all",
+        stat_by_cls_merged,
+        sort_by_acc=SORT_STAT_BY_ACC,
+        class_display_index=eval_class_display_index,
+        focus=optional_focus,
+    )
+    _export_overall_summary_csv(
+        eval_root,
+        "top1",
+        sum_stat_by_cls_focus(stat_by_cls_merged, top1_focus),
+    )
+    export_eval_stat_by_cls_csv(
+        eval_root,
+        "top1",
+        stat_by_cls_merged,
+        sort_by_acc=SORT_STAT_BY_ACC,
+        class_display_index=eval_class_display_index,
+        focus=top1_focus,
+    )
+    _export_overall_summary_csv(
+        eval_root,
+        "top2",
+        sum_stat_by_cls_focus(stat_by_cls_merged, top2_focus),
+    )
+    export_eval_stat_by_cls_csv(
+        eval_root,
+        "top2",
+        stat_by_cls_merged,
+        sort_by_acc=SORT_STAT_BY_ACC,
+        class_display_index=eval_class_display_index,
+        focus=top2_focus,
+    )
+    _export_overall_summary_csv(
+        eval_root,
+        "top3",
+        sum_stat_by_cls_focus(stat_by_cls_merged, top3_focus),
+    )
+    export_eval_stat_by_cls_csv(
+        eval_root,
+        "top3",
+        stat_by_cls_merged,
+        sort_by_acc=SORT_STAT_BY_ACC,
+        class_display_index=eval_class_display_index,
+        focus=top3_focus,
+    )
 
-    delivery_c1_focus = _normalize_delivery_focus(set(DELIVERY_C1))
-    delivery_c2_focus = _normalize_delivery_focus(set(DELIVERY_C2.keys()))
-
-    _print_stat_by_cls("一类交付害虫统计", stat_by_cls, focus=delivery_c1_focus)
-    _print_stat_by_cls("二类交付害虫统计", stat_by_cls, focus=delivery_c2_focus)
-    _export_stat_by_cls_csv(output_dir, stat_by_cls)
     _export_confusion_csv(output_dir, dict(cm))
     pairs_path = _export_confusion_pairs_ranked_csv(output_dir, dict(cm))
     _print_confusion_pairs_top(dict(cm), title="易混淆类别对")
     print(f"输出目录: {output_dir}")
+    print(f"评估统计目录: {eval_root} (all / top1 / top2 / top3)")
     if pairs_path:
         print(f"易混淆类别对排行表: {pairs_path}")
 

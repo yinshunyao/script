@@ -1,0 +1,79 @@
+{
+  "detect_daofeishi": {
+    "model": "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/v2.12/best-2.12.5-seg.pt",
+    "enable": true,
+    "model_type": "segment"
+  },
+  "detect_big": {
+    "model": "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/v2.12/best-2.12.5-seg.pt",
+          "enable": true,
+    "model_type": "segment",
+    "dia": [150, 2500],
+    "detect_conf": 0.3,
+    "out": {
+      "yee": {
+        "cn_name": "夜蛾",
+        "infer_name": "yee",
+        "dia": [300, 2500],
+        "detect_conf": 0.5,
+        "cls": {
+          "model": "/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/分类测试/v2.3-all/best-2.3.pt",
+          "enable": true,
+          "from_bbox": false,
+          "to_square": true,
+          "cls_conf": 0.3,
+          "out": {
+            "baitiaoyee": {
+              "cn_name": "白条夜蛾",
+              "infer_name": "baitiaoyee",
+              "detect_conf": 0.5,
+              "cls_conf": 0.5,
+              "dia": [500, 1300],
+              "cls": {
+                "model": "xxx.pt",
+                "enable": true,
+                "from_bbox": false,
+                "to_square": true,
+                "cls_conf": 0.3,
+                "out": {
+                  "baitiaoyee": {},
+                  "other_bai": null
+                }
+              }
+            }
+          }
+        }
+      },
+      "ming": {
+        "dia": [300, 2500]
+      },
+      "chong": {
+        "dia": [300, 2500]
+      },
+      "yuan": {
+        "dia": [300, 2500]
+      },
+      "yeeshoujifeng": {
+        "dia": [400, 2500]
+      },
+      "chie": {
+        "detect_conf": 0.5,
+        "dia": [400, 2500]
+      },
+      "xiaocaie": {
+        "detect_conf": 0.3,
+        "dia": [150, 700]
+      },
+      "baibeifeishi": {
+        "cls_conf": 0.1
+      },
+      "hefeishi": {
+        "cls_conf": 0.3
+      },
+      "huifeishi": {
+        "cls_conf": 0.3
+      }
+    }
+  }
+
+}

@@ -1,0 +1,811 @@
+{
+  "prepare": {
+    "roi_switch": false,
+    "roi_plugins": [
+      "disk_circle"
+    ],
+    "roi_disk_max_border_mean": 120,
+    "roi_disk_min_radius_ratio": 0.28,
+    "roi_disk_max_radius_ratio": 0.52,
+    "roi_disk_detect_max_side": 1024,
+    "roi_disk_edge_hug_ratio": 0,
+    "roi_disk_edge_outside_min": 0
+  },
+  "predict_cfg": {
+    "run_count": 2,
+    "clip_profiles_enable": false,
+    "predict_phase_profile": false
+  },
+  "postprocess": {
+    "debug": false,
+    "bin_dark_ratio_min": 0,
+    "report_all_switch": false,
+    "shenchan_map_classes": {
+      "huifeishi": "baibeifeishi",
+      "sanhuaming": "erhuaming"
+    }
+  },
+  "models": {
+    "detect_daofeishi": {
+      "model": "/Volumes/shunyao-h1/models-test/dfs-det-v3.1-lite/dfs-det-3.1.2s.pt",
+      "enable": true,
+      "detect_conf": 0.1,
+      "nms_iou": 0.5,
+      "clip_size": 320,
+      "overlap_size": 80,
+      "ior_threshold": 0,
+      "clip_profiles": [
+        {
+          "enable": true,
+          "clip_size": 640,
+          "overlap_size": 120,
+          "clip_start": 0
+        },
+        {
+          "enable": true,
+          "clip_size": 480,
+          "overlap_size": 80,
+          "clip_start": 0
+        }
+      ],
+      "edge_reject_distance": 5,
+      "edge_reject_conf_threshold": 0.8,
+      "edge_reject_cls_conf_threshold": 0.8,
+      "in_big_conf": 0.5,
+      "in_big_fill": false,
+      "out": {
+        "*": {
+          "models": {
+            "cls": {
+              "cls_conf": 0.3,
+              "out": {
+                "baibeifeishi": {
+                  "cls_conf": 0.3
+                },
+                "hefeishi": {
+                  "cls_conf": 0.3
+                },
+                "huifeishi": {
+                  "cls_conf": 0.3
+                },
+                "other": {
+                  "cls_conf": 0.3
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "detect_big": {
+      "model0": "/Volumes/shunyao-h1/models-test/seg-v3.13/seg-3.13.5.pt",
+      "model": "/Volumes/shunyao-h1/models-test/seg-v3.13/seg-3.13.7.m640.768.pt",
+      "model2": "/Volumes/shunyao-h1/models-test/seg-v3.13/seg-3.13.8.s640.pt",
+      "enable": true,
+      "draw_filter": false,
+      "model_type": "segment",
+      "seg_imgsz": 1280,
+      "retina_masks": false,
+      "to_square": true,
+      "to_gray": false,
+      "half": false,
+      "augment": false,
+      "clip_size": 0,
+      "overlap_size": 80,
+      "clip_profiles": [
+        {
+          "enable": true,
+          "clip_size": 2560,
+          "overlap_size": 200,
+          "seg_imgsz": 800
+        },
+        {
+          "enable": true,
+          "clip_size": 0,
+          "overlap_size": 200,
+          "seg_imgsz": 1280
+        },
+        {
+          "enable": false,
+          "clip_size": 1280,
+          "overlap_size": 120,
+          "seg_imgsz": 1280
+        },
+        {
+          "enable": false,
+          "clip_size": 1280,
+          "overlap_size": 200,
+          "seg_imgsz": 640,
+          "clip_start": 300
+        }
+      ],
+      "detect_conf": 0.6,
+      "nms_iou": 0.75,
+      "ior_threshold": 0,
+      "poly_merge": false,
+      "filter_rows_by_roi_boundary": false,
+      "roi_disk_edge_hug_ratio": 0,
+      "roi_disk_edge_outside_min": 0,
+      "dia": [
+        50,
+        1000
+      ],
+      "dia_switch": true,
+      "out": {
+        "*": {
+          "cn_name": "昆虫",
+          "infer_name": "insect",
+          "enable": true,
+          "models": {
+            "cls": {
+              "model0": "/Volumes/shunyao-h1/models-test/cls-v3.8/cls-3.8.11.pt",
+              "model1:": "/Volumes/shunyao-h1/models-test/cls-v3.9/cls-3.9.2.pt",
+              "model": "/Volumes/shunyao-h1/models-test/cls-v3.10/cls-3.10.2.m480.pt",
+              "enable": true,
+              "dia_switch": false,
+              "cls_conf": 0.3,
+              "skip_dia_conf": 0.85,
+              "out": {
+                "anheisaijingui": {
+                  "cls_conf": 0.3
+                },
+                "anwenziheming": {
+                  "cls_conf": 0.3
+                },
+                "badianhuidenge": {
+                  "cls_conf": 0.3
+                },
+                "baibianqieyee": {
+                  "cls_conf": 0.3
+                },
+                "baidiananyeming": {
+                  "cls_conf": 0.3
+                },
+                "baidue": {
+                  "cls_conf": 0.3
+                },
+                "baigouxiaojuane": {
+                  "cls_conf": 0.3
+                },
+                "bailajuanxuyeming": {
+                  "cls_conf": 0.3
+                },
+                "baimaizhanyee": {
+                  "cls_conf": 0.3
+                },
+                "baitiaoyee": {
+                  "cls_conf": 0.3
+                },
+                "baixiansanwenyee": {
+                  "cls_conf": 0.3
+                },
+                "bazidilaohu": {
+                  "cls_conf": 0.3
+                },
+                "biancie": {
+                  "cls_conf": 0.3
+                },
+                "bowenyee": {
+                  "cls_conf": 0.3
+                },
+                "bujia": {
+                  "cls_conf": 0.3
+                },
+                "caodiming": {
+                  "cls_conf": 0.3
+                },
+                "caoditanyee": {
+                  "cls_conf": 0.3
+                },
+                "caoling": {
+                  "cls_conf": 0.3
+                },
+                "chachichun": {
+                  "cls_conf": 0.3
+                },
+                "chaseidilaohu": {
+                  "cls_conf": 0.3
+                },
+                "chenwudenge": {
+                  "cls_conf": 0.3
+                },
+                "chie": {
+                  "cls_conf": 0.3
+                },
+                "chimeidongyee": {
+                  "cls_conf": 0.3
+                },
+                "chirongsaijingui": {
+                  "cls_conf": 0.3
+                },
+                "chixumangchun": {
+                  "cls_conf": 0.3
+                },
+                "chun": {
+                  "cls_conf": 0.3
+                },
+                "chunlue": {
+                  "cls_conf": 0.3
+                },
+                "dadilaohu": {
+                  "cls_conf": 0.3
+                },
+                "daheisaijingui": {
+                  "cls_conf": 0.3
+                },
+                "daming": {
+                  "cls_conf": 0.3
+                },
+                "danjiantanyee": {
+                  "cls_conf": 0.3
+                },
+                "danmainianchong": {
+                  "cls_conf": 0.3
+                },
+                "danyinwenyee": {
+                  "cls_conf": 0.3
+                },
+                "daodue": {
+                  "cls_conf": 0.3
+                },
+                "daolvchun": {
+                  "cls_conf": 0.3
+                },
+                "daozongjuanyeming": {
+                  "cls_conf": 0.3
+                },
+                "daqingyechan": {
+                  "cls_conf": 0.3
+                },
+                "dawen": {
+                  "cls_conf": 0.3
+                },
+                "dazaoqiaochong": {
+                  "cls_conf": 0.3
+                },
+                "dianguangyechan": {
+                  "cls_conf": 0.3
+                },
+                "dihongchun": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "dingyee": {
+                  "cls_conf": 0.3
+                },
+                "dongfanglougu": {
+                  "cls_conf": 0.3
+                },
+                "dongfangnianchong": {
+                  "cls_conf": 0.3
+                },
+                "doujiabanming": {
+                  "cls_conf": 0.3
+                },
+                "doujiayeming": {
+                  "cls_conf": 0.3
+                },
+                "erdianweiyee": {
+                  "cls_conf": 0.3
+                },
+                "erhuaming": {
+                  "cls_conf": 0.3
+                },
+                "fanzhie": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "feng": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "fayee": {
+                  "cls_conf": 0.3
+                },
+                "fendiedenge": {
+                  "cls_conf": 0.3
+                },
+                "fenyuanzuanyee": {
+                  "cls_conf": 0.3
+                },
+                "ganlanyee": {
+                  "cls_conf": 0.3
+                },
+                "ganshumaie": {
+                  "cls_conf": 0.3
+                },
+                "ganshutiane": {
+                  "cls_conf": 0.3
+                },
+                "ganwenyee": {
+                  "cls_conf": 0.3
+                },
+                "goujinzhenchong": {
+                  "cls_conf": 0.3
+                },
+                "gouyuetiane": {
+                  "cls_conf": 0.3
+                },
+                "guajuanming": {
+                  "cls_conf": 0.3
+                },
+                "hanliuyuanyeming": {
+                  "cls_conf": 0.3
+                },
+                "heidiantaie": {
+                  "cls_conf": 0.3
+                },
+                "heirongsaijingui": {
+                  "cls_conf": 0.3
+                },
+                "heiweiyechan": {
+                  "cls_conf": 0.3
+                },
+                "hongchun": {
+                  "cls_conf": 0.3
+                },
+                "hongjiaolvlijingui": {
+                  "cls_conf": 0.3
+                },
+                "hongliudiantiane": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "hongzonghuiyee": {
+                  "cls_conf": 0.3
+                },
+                "huachun": {
+                  "cls_conf": 0.3
+                },
+                "huaichie": {
+                  "cls_conf": 0.3
+                },
+                "huaiyuzhoue": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "huajinglvwenhuang": {
+                  "cls_conf": 0.3
+                },
+                "huaming": {
+                  "cls_conf": 0.3
+                },
+                "huangchizhuiyeyeming": {
+                  "cls_conf": 0.3
+                },
+                "huangchong": {
+                  "cls_conf": 0.3
+                },
+                "huangdilaohu": {
+                  "cls_conf": 0.3
+                },
+                "huangheyilijingui": {
+                  "cls_conf": 0.3
+                },
+                "huanglianmuchihuo": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "huangtutaie": {
+                  "cls_conf": 0.3
+                },
+                "huangyangjuanyeming": {
+                  "cls_conf": 0.3
+                },
+                "huangyee": {
+                  "cls_conf": 0.3
+                },
+                "huangyeming": {
+                  "cls_conf": 0.3
+                },
+                "huangzuliechun": {
+                  "cls_conf": 0.3
+                },
+                "huasaijingui": {
+                  "cls_conf": 0.3
+                },
+                "huibandoutiane": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "huifeishi": {
+                  "cls_conf": 0.3
+                },
+                "huixiongtusaijingui": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "jiachong": {
+                  "cls_conf": 0.3
+                },
+                "jianzhuienyeming": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "jinbanyee": {
+                  "cls_conf": 0.3
+                },
+                "jingui": {
+                  "cls_conf": 0.3
+                },
+                "jingwendiyee": {
+                  "cls_conf": 0.3
+                },
+                "juane": {
+                  "cls_conf": 0.3
+                },
+                "juanyee": {
+                  "cls_conf": 0.3
+                },
+                "juxianchie": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "kelaiyee": {
+                  "cls_conf": 0.3
+                },
+                "koujia": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "kuanjingyee": {
+                  "cls_conf": 0.3
+                },
+                "lanlvqijiaoming": {
+                  "cls_conf": 0.3
+                },
+                "laoshinianchong": {
+                  "cls_conf": 0.3
+                },
+                "liechun": {
+                  "cls_conf": 0.3
+                },
+                "liushangyee": {
+                  "cls_conf": 0.3
+                },
+                "liuyinchibanminge": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "lixiaoshixinchong": {
+                  "cls_conf": 0.3
+                },
+                "longshi": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "lvlijingui": {
+                  "cls_conf": 0.3
+                },
+                "maimianyee": {
+                  "cls_conf": 0.3
+                },
+                "maimuyeming": {
+                  "cls_conf": 0.3
+                },
+                "maisuiyee": {
+                  "cls_conf": 0.3
+                },
+                "malingshusaijingui": {
+                  "cls_conf": 0.3
+                },
+                "mangchun": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "meiguijinyee": {
+                  "cls_conf": 0.3
+                },
+                "meiguobaie": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "miandajuanyeming": {
+                  "cls_conf": 0.3
+                },
+                "mianhehuanyeming": {
+                  "cls_conf": 0.3
+                },
+                "mianlingchong": {
+                  "cls_conf": 0.3
+                },
+                "mianshuangxiejuane": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "mifeng": {
+                  "cls_conf": 0.3
+                },
+                "ming_bai": {
+                  "cls_conf": 0.3
+                },
+                "minge": {
+                  "enable": false,
+                  "bak": "背景类；螟蛾-比昂-生产未知细分类，过滤不上报（0709）"
+                },
+                "moyee": {
+                  "cls_conf": 0.3
+                },
+                "mudue": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "muxuyee": {
+                  "cls_conf": 0.3
+                },
+                "nianmoyee": {
+                  "cls_conf": 0.3
+                },
+                "niaozuihuyee": {
+                  "cls_conf": 0.3
+                },
+                "other": {
+                  "cls_conf": 0.3
+                },
+                "other_seg": {
+                  "cls_conf": 0.3
+                },
+                "piaochong": {
+                  "cls_conf": 0.3
+                },
+                "pingshaoyingyee": {
+                  "cls_conf": 0.3
+                },
+                "pingyanchie": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "pingzhangzhoue": {
+                  "cls_conf": 0.3
+                },
+                "qijiaoming": {
+                  "cls_conf": 0.3
+                },
+                "qingchie": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "qiweiyee": {
+                  "cls_conf": 0.3
+                },
+                "quewentiane": {
+                  "cls_conf": 0.3
+                },
+                "renwenwudenge": {
+                  "cls_conf": 0.3
+                },
+                "saijingui": {
+                  "cls_conf": 0.3
+                },
+                "sanchadilaohu": {
+                  "cls_conf": 0.3
+                },
+                "sandianmuxumangchun": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "sangming": {
+                  "cls_conf": 0.3
+                },
+                "sanhuaming": {
+                  "cls_conf": 0.3
+                },
+                "shanguangmeidenge": {
+                  "cls_conf": 0.3
+                },
+                "shie": {
+                  "cls_conf": 0.3
+                },
+                "shouyindingyee": {
+                  "cls_conf": 0.3
+                },
+                "shuiming": {
+                  "cls_conf": 0.3
+                },
+                "sibanjuanyeming": {
+                  "cls_conf": 0.3
+                },
+                "simianmujinxingchie": {
+                  "cls_conf": 0.3
+                },
+                "taie": {
+                  "cls_conf": 0.3
+                },
+                "taiwanjuansiyeming": {
+                  "cls_conf": 0.3
+                },
+                "taozhuming": {
+                  "cls_conf": 0.3
+                },
+                "tiancaibaidaiyeming": {
+                  "cls_conf": 0.3
+                },
+                "tiancaiyee": {
+                  "cls_conf": 0.3
+                },
+                "tonglvyilijingui": {
+                  "cls_conf": 0.3
+                },
+                "tubeibanhongchun": {
+                  "cls_conf": 0.3
+                },
+                "tuchun": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "tujia": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "wen": {
+                  "cls_conf": 0.3
+                },
+                "xianbanhongchun": {
+                  "cls_conf": 0.3
+                },
+                "xianweiyee": {
+                  "cls_conf": 0.3
+                },
+                "xiaocaie": {
+                  "cls_conf": 0.3
+                },
+                "xiaodilaohu": {
+                  "cls_conf": 0.3
+                },
+                "xiaoguantouxishuai": {
+                  "cls_conf": 0.3
+                },
+                "xiaohongjichie": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "xiaolajuanxuyeming": {
+                  "cls_conf": 0.3
+                },
+                "xiaoshie": {
+                  "cls_conf": 0.3
+                },
+                "xiaoyunbansaijingui": {
+                  "cls_conf": 0.3
+                },
+                "xiaozaoqiaoe": {
+                  "cls_conf": 0.3
+                },
+                "xiewenyee": {
+                  "cls_conf": 0.3
+                },
+                "xieyee": {
+                  "cls_conf": 0.3
+                },
+                "xijingui": {
+                  "cls_conf": 0.3
+                },
+                "xishuai": {
+                  "cls_conf": 0.3
+                },
+                "xitiaowenming": {
+                  "cls_conf": 0.3
+                },
+                "xiumuyee": {
+                  "cls_conf": 0.3
+                },
+                "xuanqiyee": {
+                  "cls_conf": 0.3
+                },
+                "xuanyouyee": {
+                  "cls_conf": 0.3
+                },
+                "yajia": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "yanfumuheitiaoming": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "yangshanzhoue": {
+                  "cls_conf": 0.3
+                },
+                "yangxiaozhoue": {
+                  "cls_conf": 0.3
+                },
+                "yanqingchong": {
+                  "cls_conf": 0.3
+                },
+                "yanyee": {
+                  "cls_conf": 0.3
+                },
+                "yechan": {
+                  "cls_conf": 0.3
+                },
+                "yeesoujifeng": {
+                  "cls_conf": 0.3
+                },
+                "yibeilue": {
+                  "cls_conf": 0.3
+                },
+                "yinchichong": {
+                  "cls_conf": 0.3
+                },
+                "yindingyee": {
+                  "cls_conf": 0.3,
+                  "models": {
+                    "cls": {
+                      "cls_conf": 0.3,
+                      "out": {
+                        "yindingyee": {
+                          "cls_conf": 0.3
+                        },
+                        "yinwenyee": {
+                          "cls_conf": 0.3
+                        },
+                        "yinyawenyee": {
+                          "cls_conf": 0.3
+                        }
+                      }
+                    }
+                  }
+                },
+                "ying": {
+                  "cls_conf": 0.3
+                },
+                "yinwenyee": {
+                  "cls_conf": 0.3
+                },
+                "yinyawenyee": {
+                  "cls_conf": 0.3
+                },
+                "yiqieyee": {
+                  "cls_conf": 0.3
+                },
+                "yiwu": {
+                  "cls_conf": 0.3
+                },
+                "youcaijiaoyeming": {
+                  "cls_conf": 0.3
+                },
+                "youtongchihuo": {
+                  "cls_conf": 0.3
+                },
+                "yubaibianzhoue": {
+                  "cls_conf": 0.3
+                },
+                "yumiming": {
+                  "cls_conf": 0.3
+                },
+                "yunwenhujia": {
+                  "cls_conf": 0.3
+                },
+                "zhaishenchangxuyee": {
+                  "cls_conf": 0.3
+                },
+                "zhonghualanbujia": {
+                  "cls_conf": 0.3
+                },
+                "zhonghuaxiaobianxijingui": {
+                  "cls_conf": 0.3
+                },
+                "zhonghuaxingbujia": {
+                  "cls_conf": 0.3
+                },
+                "zhonghuazhendibie": {
+                  "enable": true,
+                  "cls_conf": 0.3
+                },
+                "zhongjinhuyee": {
+                  "cls_conf": 0.3
+                },
+                "zhuzhiyeyeming": {
+                  "cls_conf": 0.3
+                },
+                "zitiaochie": {
+                  "cls_conf": 0.3
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -29,7 +29,7 @@ def uses_slice_inference_path(w, h, clip_size, overlap_size):
     return True
 
 
-def iter_clip_rects(w, h, clip_size, overlap_size):
+def iter_clip_rects(w, h, clip_size, overlap_size, clip_start: int = 0):
     """
     与推理切片循环一致的全图坐标矩形序列 (x1,y1,x2,y2)。
     整图分支时为单块 (0,0,w,h)。
@@ -37,7 +37,9 @@ def iter_clip_rects(w, h, clip_size, overlap_size):
     if not uses_slice_inference_path(w, h, clip_size, overlap_size):
         yield (0, 0, w, h)
         return
-    for clip_x1, clip_y1, clip_x2, clip_y2 in get_clip(w, h, clip_size, overlap_size):
+    for clip_x1, clip_y1, clip_x2, clip_y2 in get_clip(
+        w, h, clip_size, overlap_size, clip_start=clip_start
+    ):
         yield (clip_x1, clip_y1, clip_x2, clip_y2)
 
 

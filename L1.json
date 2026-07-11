@@ -1,0 +1,388 @@
+{
+  "jia_ke": {
+    "gui": {
+      "anheisaijingui": {
+        "anheisaijingui-ba": 295
+      },
+      "daheisaijingui": {
+        "daheisaijingui-ba": 295
+      },
+      "hongjiaolvlijingui": {
+        "hongjiaolvlijingui-ba": 295
+      },
+      "huangheyilijingui": {
+        "huangheyilijingui-ba": 295
+      },
+      "malingshusaijingui": {
+        "malingshusaijingui-ba": 295
+      },
+      "tonglvyilijingui": {
+        "tonglvyilijingui-ba": 295
+      },
+      "xiaoyunbansaijingui": {
+        "xiaoyunbansaijingui-ba": 295
+      }
+    },
+    "xijin_gui": {
+      "zhonghuaxiaobianxijingui": {
+        "zhonghuaxiaobianxijingui-ba": 1199
+      }
+    },
+    "zhenjin": {
+      "goujinzhenchong": {
+        "goujinzhenchong-ba": 2066
+      }
+    },
+    "yinchi": {
+      "yinchichong": {
+        "yinchichong-ba-sc": 176
+      }
+    },
+    "jiachong": {
+      "jiachong": {
+        "jiachong-ba-sc": 263
+      }
+    }
+  },
+  "lin_chi": {
+    "ming": {
+      "bailajuanxuyeming": {
+        "bailajuanxuyeming-ba": 20
+      },
+      "caodiming": {
+        "caodiming-beijing": 10,
+        "caodiming-net": 10
+      },
+      "daming": {
+        "daming-ba": 20
+      },
+      "daozongjuanyeming": {
+        "daozongjuanyeming-ba": 19
+      },
+      "doujiayeming": {
+        "doujiayeming-beijing": 20
+      },
+      "douyeming": {
+        "douyeming-ba": 20
+      },
+      "erhuaming": {
+        "erhuaming-ba": 10,
+        "erhuaming-ba-sc": 10
+      },
+      "guajuanming": {
+        "guajuanming-ba": 10,
+        "guajuanming-beijing": 9
+      },
+      "huangchizhuiyeyeming": {
+        "huangchizhuiyeyeming-ba": 9,
+        "huangchizhuiyeyeming-beijing": 10
+      },
+      "huangyangjuanyeming": {
+        "huangyangjuanyeming-beijing": 20
+      },
+      "huangyeming": {
+        "huangyeming-ba": 20
+      },
+      "maimuyeming": {
+        "maimuyeming-ba": 9,
+        "maimuyeming-beijing": 10
+      },
+      "miandajuanyeming": {
+        "miandajuanyeming-beijing": 20
+      },
+      "qijiaoming": {
+        "qijiaoming-ba": 20
+      },
+      "sanhuaming": {
+        "sanhuaming-ba": 20
+      },
+      "shuiming": {
+        "shuiming-ba": 20
+      },
+      "sibanjuanyeming": {
+        "sibanjuanyeming-ba": 10,
+        "sibanjuanyeming-beijing": 9
+      },
+      "taozhuming": {
+        "taozhuming-ba": 10,
+        "taozhuming-beijing": 10
+      },
+      "tiancaibaidaiyeming": {
+        "tiancaibaidaiyeming-ba": 10,
+        "tiancaibaidaiyeming-beijing": 9
+      },
+      "youcaijiaoyeming": {
+        "youcaijiaoyeming-ba": 19
+      },
+      "yumiming": {
+        "yumiming-ba": 9,
+        "yumiming-beijing": 10
+      }
+    },
+    "ye_e": {
+      "yin_baitiao": {
+        "baitiaoyee-ba": 17,
+        "baitiaoyee-beijing": 18,
+        "yindingyee-ba": 17,
+        "yindingyee-beijing": 17,
+        "yinwenyee-ba": 17,
+        "yinwenyee-beijing": 17
+      },
+      "huizhi": {
+        "baibianqieyee-ba": 4,
+        "bowenyee-beijing": 4,
+        "chimeidongyee-beijing": 4,
+        "dingyee-beijing": 4,
+        "fayee-ba": 4,
+        "ganlanyee-ba": 3,
+        "ganlanyee-beijing": 3,
+        "ganweidongyee-ba": 4,
+        "ganwenyee-beijing": 4,
+        "hongzonghuiyee-beijing": 4,
+        "huangyee-ba": 3,
+        "jinbanyee-beijing": 4,
+        "jingwendiyee-ba": 4,
+        "kuanjingyee-ba": 3,
+        "kuanjingyee-beijing": 3,
+        "liushangyee-beijing": 3,
+        "maimianyee-ba": 3,
+        "maisuiyee-ba": 3,
+        "meiguijinyee-ba": 3,
+        "moyee-ba": 3,
+        "muxuyee-beijing": 3,
+        "niaozuihuyee-ba": 3,
+        "pingshaoyingyee-ba": 3,
+        "xianweiyee-ba": 3,
+        "xiumuyee-ba": 3,
+        "xiumuyee-beijing": 3,
+        "xuanqiyee-ba": 3,
+        "yanyee-beijing": 3,
+        "yiqieyee-ba": 3,
+        "zhanmoyee-ba": 3,
+        "zhongjinhuyee-ba": 3
+      },
+      "baoshi_qianfei": {
+        "caoditanyee-ba": 12,
+        "caoditanyee-beijing": 11,
+        "qiweiyee-ba": 11,
+        "tiancaiyee-ba": 12,
+        "tiancaiyee-beijing": 12,
+        "xiaozaoqiaoe-ba": 11,
+        "xiewenyee-ba": 12,
+        "xiewenyee-beijing": 11,
+        "xuanyouyee-beijing": 11
+      },
+      "du_e": {
+        "daodue-ba": 58,
+        "daodue-ba-sc": 45
+      }
+    },
+    "deng_e": {
+      "badianhuidenge": {
+        "badianhuidenge-ba": 103
+      },
+      "chenwudenge": {
+        "chenwudenge-ba": 103
+      },
+      "fendiedenge": {
+        "fendiedenge-ba": 103
+      },
+      "shanguangmeidenge": {
+        "shanguangmeidenge-ba": 103
+      }
+    },
+    "lu_e": {
+      "chunlue": {
+        "chunlue-ba": 206
+      },
+      "yibeilue": {
+        "yibeilue-ba": 206
+      }
+    },
+    "tai_e": {
+      "heidiantaie": {
+        "heidiantaie-ba": 206
+      },
+      "huangtutaie": {
+        "huangtutaie-beijing": 206
+      }
+    },
+    "dilaohu_nian": {
+      "bazidilaohu": {
+        "bazidilaohu-ba-bei": 15,
+        "bazidilaohu-ba-fu": 15,
+        "bazidilaohu-beijing": 16
+      },
+      "dadilaohu": {
+        "dadilaohu-ba": 46
+      },
+      "erdianweiyee": {
+        "erdianweiyee-ba": 22,
+        "erdianweiyee-beijing": 23
+      },
+      "huangdilaohu": {
+        "huangdilaohu-ba": 23,
+        "huangdilaohu-beijing": 23
+      },
+      "sanchadilaohu": {
+        "sanchadilaohu-beijing": 46
+      },
+      "xiaodilaohu": {
+        "xiaodilaohu-ba-bei": 15,
+        "xiaodilaohu-ba-fu": 15,
+        "xiaodilaohu-beijing": 15
+      },
+      "danmainianchong": {
+        "danmainianchong-beijing": 46
+      },
+      "dongfangnianchong": {
+        "dongfangnianchong-ba": 23,
+        "dongfangnianchong-beijing": 23
+      },
+      "laoshinianchong": {
+        "laoshinianchong-ba": 23,
+        "laoshinianchong-beijing": 23
+      }
+    },
+    "mian_yan": {
+      "mianlingchong": {
+        "mianlingchong-ba": 103,
+        "mianlingchong-beijing": 103
+      },
+      "yanqingchong": {
+        "yanqingchong-ba": 206
+      }
+    },
+    "tiane": {
+      "ganshutiane": {
+        "ganshutiane-beijing": 138
+      },
+      "gouyuetiane": {
+        "gouyuetiane-ba": 137
+      },
+      "quewentiane": {
+        "quewentiane-ba": 137
+      }
+    },
+    "zhou_e": {
+      "pingzhangzhoue": {
+        "pingzhangzhoue-ba": 412
+      }
+    },
+    "chi_e": {
+      "youtongchihuo": {
+        "youtongchihuo-ba": 196,
+        "youtongchihuo-ba-sc": 10
+      },
+      "zitiaochie": {
+        "zitiaochie-ba": 206
+      }
+    },
+    "bian_juan": {
+      "biancie": {
+        "biancie-beijing": 413
+      }
+    },
+    "juanyee": {
+      "juanyee": {
+        "juanyee-net": 412
+      }
+    },
+    "xiaoshie": {
+      "xiaoshie": {
+        "xiaoshie-ba": 412
+      }
+    },
+    "xiaocai": {
+      "xiaocaie": {
+        "xiaocaie-ba-bei": 206,
+        "xiaocaie-ba-fu": 206
+      }
+    }
+  },
+  "zhi_chi": {
+    "zhichi": {
+      "dongfanglougu": {
+        "dongfanglougu-ba": 683,
+        "dongfanglougu-beijing": 683
+      },
+      "xiaoguantouxishuai": {
+        "xiaoguantouxishuai-ba": 1366
+      },
+      "xishuai": {
+        "xishuai-beijing": 1039
+      }
+    },
+    "huang": {
+      "huajinglvwenhuang": {
+        "huajinglvwenhuang-ba": 999
+      },
+      "huangchong": {
+        "huangchong-beijing": 999
+      }
+    }
+  },
+  "ban_chi": {
+    "chun": {
+      "daolvchun": {
+        "daolvchun-ba": 634
+      },
+      "huangzuliechun": {
+        "huangzuliechun-ba": 633
+      },
+      "tubeibanhongchun": {
+        "tubeibanhongchun-ba": 634
+      },
+      "xianbanhongchun": {
+        "xianbanhongchun-ba": 633
+      }
+    },
+    "yecan": {
+      "daqingyechan": {
+        "daqingyechan-ba": 751,
+        "daqingyechan-beijing": 751
+      },
+      "dianguangyechan": {
+        "dianguangyechan-ba-sc": 34
+      },
+      "heiweiyechan": {
+        "heiweiyechan-ba": 999
+      }
+    },
+    "feishi": {
+      "daofeishi": {
+        "daofeishi-ba-sc": 700
+      }
+    }
+  },
+  "qi_ta": {
+    "feng": {
+      "yeesoujifeng": {
+        "yeesoujifeng-ba": 1679
+      }
+    },
+    "cao_ling": {
+      "caoling": {
+        "caoling-beijing": 2614
+      }
+    },
+    "shuang_wen": {
+      "dawen": {
+        "dawen-ba": 999
+      },
+      "wen": {
+        "wen-ba-sc": 200
+      }
+    },
+    "fuyou": {
+      "fuyou": {
+        "fuyou-ba-sc": 143
+      }
+    },
+    "ying": {
+      "ying": {
+        "ying-ba-sc": 134
+      }
+    }
+  }
+}

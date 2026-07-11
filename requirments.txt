@@ -1,0 +1,61 @@
+# insect/script — 推理、验证、Gradio 服务、TensorRT 导出与 SAM Demo 的 Python 依赖
+#
+# 扫描范围：script/*.py、predict/、tools/、val/、sam-demo/（不含 alg-bak 历史备份）
+#
+# ── GPU 服务器推荐安装顺序（避免 torch/torchvision 错位）────────────────────
+# 1) 先装与 CUDA 匹配的成套 PyTorch（含 torch+torchvision，版本已锁定）：
+#      pip install -r insect/train/requirements-cuda130.txt   # CUDA 13.x
+#      pip install -r insect/train/requirements-cuda128.txt   # CUDA 12.8
+#      pip install -r insect/train/requirements-cuda126.txt   # V100 / cu126
+# 2) 再装本文件其余依赖（本文件 **不含** torch/torchvision，勿拆开升级）：
+#      pip install -r insect/script/requirments.txt
+#
+# macOS / CPU-only：
+#   pip install -U pip
+#   pip install -r insect/script/requirments.txt
+#   pip install torch torchvision   # 或按 https://pytorch.org 选择 CPU 构建
+#
+#   python3 -m pip install -r requirments.txt --break-system-packages --ignore-installed
+--index-url https://mirrors.aliyun.com/pypi/simple/
+--trusted-host mirrors.aliyun.com
+
+# --- 核心数值 / 图像（predict_*、model_*、tools、val）---
+numpy>=1.23.0,<3
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# --- YOLO 检测 / 分类 / 分割（ultralytics）---
+# TRT 11 原生导出建议 >=8.4.63；tools/acc_tensorRT.py 已对 8.4.41 + TRT10/11 打兼容补丁
+ultralytics==8.4.41
+
+# --- timm ConvNeXt 分类（predict/model_cls_timm.py）---
+timm>=1.0.3
+
+# --- PyTorch ---
+# ⚠️ 不在此文件声明 torch/torchvision（Linux GPU 由 train/requirements-cuda*.txt 成对安装）。
+# 若单独 pip install torch 或 torchvision 导致 `operator torchvision::nms does not exist`，
+# 请按文件头「GPU 服务器推荐安装顺序」成对 --force-reinstall。
+
+# --- TensorRT .engine 导出（tools/acc_tensorRT.py，仅 Linux NVIDIA GPU）---
+# ultralytics export(format=engine) 与 acc_tensorRT 补丁共用。
+# tensorrt 若 pip 装不上，按 NVIDIA 文档安装与 CUDA 匹配的 TensorRT wheel。
+tensorrt>7.0.0,!=10.1.0,!=10.2.0
+onnx>=1.12.0,<1.18.0
+onnxslim>=0.1.56
+onnxruntime-gpu>=1.15.0; platform_system=="Linux"
+onnxruntime>=1.15.0; platform_system!="Linux"
+# TensorRT 11：FP16/INT8 须在 ONNX 图内量化（BuilderFlag.FP16/INT8 已移除）
+nvidia-modelopt[onnx]>=0.44
+
+# --- Gradio 推理测试 + FastAPI REST（predict_all_gradio.py）---
+gradio>=5.31.0,<6.0.0
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+
+# --- 验证报表 / 混淆矩阵（predict_size_validate_lib.py）---
+matplotlib>=3.7.0
+
+# --- SAM2（仅 sam-demo/，PyPI 包名 SAM-2，须从源码 editable 安装）---
+# 详见 insect/doc/99-ops/sam2.md
+#   git clone https://github.com/facebookresearch/sam2.git
+#   cd sam2 && pip install -e . -i https://mirrors.aliyun.com/pypi/simple/

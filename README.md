@@ -1,45 +1,63 @@
 # script
 
-虫情识别推理脚本目录：**配置驱动的统一多根推理**（`predict_all.py`）、**Gradio 本地测试与 REST 服务**（`predict_all_gradio.py`），以及标注校验、数据 ingest 等辅助脚本。
+虫情识别推理脚本目录：**配置驱动的统一多根推理**（`predict_all.py`）、**Gradio 本地测试与 REST 服务**（`predict_all_gradio.py`），以及标注校验、数据 ingest、导出与评估等辅助脚本。
 
-一套 JSON 配置即可驱动「检测 + 分割 + 多级分类 + 多场景部署 + 在线服务」，覆盖田间设备、摆拍评测与算法迭代全链路。
+一套 JSON 配置即可驱动「检测 + 分割 + 多级分类 + 多场景部署 + 在线服务」，覆盖田间设备、摆拍评测与算法迭代全链路。字段级说明见 **[算法配置说明.md](./算法配置说明.md)**；临场开关见 `config/算法配置重点.md`。
 
 ## 亮点功能
 
 ### 统一推理架构
 
 - **多根模型并行**：大虫检测、小虫专项、实例分割等多路模型在同一管线内独立跑图，结果统一格式、带来源 `source` 可追溯。
-- **递归路由子图**：`out` → `models.cls` → 嵌套 `out` 形成可配置的分类决策树，新增物种/专项模型**改 JSON 即可**，无需改代码。
-- **检测 × 分割协同**：detect 与 segment 根可并发执行；分割输出 polygon + bbox，支持 `poly_merge` 轮廓去重、`mask_rate` 填充率过滤。
+- **递归路由子图**：`out` → `models.cls` → 嵌套 `out` 形成可配置的分类决策树；支持类名、正则、对角线尺寸区间键（如 `"[50,300)"`）与 `*` 通配，新增物种/专项模型**改 JSON 即可**。
+- **检测 × 分割协同**：detect 与 segment 根可并发执行（`predict_cfg.parallel_detect_seg`）；分割输出 polygon + bbox，支持 `poly_merge` 轮廓去重、`mask_rate` 填充率过滤。
 - **场景一键切换**：`run_model` 在摆拍 / 生产 / 其他三套 profile 间切换，差异项覆盖合并，同一套代码适配评测与上线。
+
+### 模型与推理后端
+
+- **检测**：Ultralytics **YOLO**（`.pt`）、**TensorRT**（`.engine`，`trt_switch`）、**ONNX Runtime**（`.onnx`；`model_type: onnx`/`ort`，或权重扩展名为 `.onnx` 时自动走 ONNX，管线与 detect 一致）。
+- **分割**：YOLO segment（`.pt` / `.engine`），滑窗、跨切片 IoR 合并、多边形回映射。
+- **嵌套分类**：YOLO classify（`.pt` / `.engine`）与 **timm ConvNeXt** 等 checkpoint 自动识别；YOLO 分类支持 crop **批推理**（`cls_batch_size`）。
+- **导出工具**：`tools/export_yolo_onnx.py`、`export_tensorrt_engine.py`、`export_yolo_best_pt*.py`，便于从训练权重到部署权重。
+
+### 置信度与过滤门限（均可 JSON 配置）
+
+- **检测/分割 conf**：根级 `detect_conf`；可按体型拆 `detect_conf_small` / `detect_conf_big`；各类 `out.*.detect_conf` 可单独收紧或放宽。推理阶段 YOLO conf 取根与各类门限的**最小值**，避免低门限类漏检；路由后再按各类自身门限过滤。
+- **分类 conf**：`out.*.cls_conf` 约束 top1；可选 `skip_dia_conf`（高分类置信度跳过尺寸门限）。
+- **尺寸过滤**：外接框对角线 `dia`（像素）或 `dia_mm` + `px_per_mm` 换算；根级与 `out` 级均可配；`dia_switch` 总开关。
+- **相对尺寸重排**（`postprocess.relative_size`）：同图内用 top1/top2/top3 报出类估相对尺度，顶分类尺寸明显不符时在 `cls_topk` 中按尺寸重选，降低「大虫报成小虫」类错误。
+- **几何后处理**（`postprocess.geometry`）：同类 IoU 合并、大虫套大虫 / 小虫套小虫 / 小虫落入大虫（IoR）滤除。
+- **形态与 ROI**：`bin_dark_ratio_min`（Otsu 暗区占比）、分割 `mask_rate`、圆盘贴边 `roi_edge`、多尺度 `split_by_scale` 等。
+- **分类 OOD / 黑名单**：`black_classes` 递补与垃圾桶、`p_dump` / `p_near` / `min_near` / `near_cls` 近种拒报；`only_classes` 白名单；`report_tier` 控制报出档位。
+- **过滤可解释**：`collect_filtered=True` 返回被滤实例及 `filter_reason`（如 `threshold` / `cls` / `dia` / `mask_rate` / `relative_size` / `big_in_big_ior` 等）。
 
 ### 工程化与性能
 
-- **TensorRT 加速**：`trt_switch` 一键切换 `.engine` 推理，YOLO 检测/分割/分类全链路可 TRT 化。
-- **多级批推理**：滑窗 detect/seg 批处理、分类 crop 批推理、GPU 裁切流水线（`use_gpu_crop`），充分压榨 GPU 吞吐。
-- **多进程推理池**：`run_count>1` 时独立 worker 进程各持一套模型，HTTP 并发场景下线性扩展吞吐。
-- **分阶段 profiling**：内置 detect / seg / cls-batch / post 耗时采集，定位瓶颈无需外接 profiler。
+- **TensorRT 加速**：`predict_cfg.trt_switch` 一键切换 `.engine`，检测/分割/分类全链路可 TRT 化。
+- **多级批推理**：滑窗 detect/seg 批处理、分类 crop 批推理、GPU 裁切流水线（`use_gpu_crop`）。
+- **多进程推理池**：`run_count>1` 时独立 worker 进程各持一套模型，HTTP 并发场景下扩展吞吐。
+- **分阶段 profiling**：内置 detect / seg / cls-batch / post 耗时采集（`predict_phase_profile`）。
 
 ### 现场适配能力
 
 - **智能 ROI 预处理**：粘虫板圆盘自动定位与裁切（`roi_switch` + 插件），减少背景干扰。
-- **多尺度滑窗**：`clip_profiles` 多套切片策略按图幅/场景切换，兼顾大图检出与小目标召回。
-- **in_big 小虫恢复**：大虫框内小虫误滤时可按检测/分类置信度二次恢复，降低「大虫挡小虫」漏报。
-- **尺寸 / 形态过滤**：对角线 `dia`、Otsu 暗区占比 `bin_dark_ratio`、边缘拒识等门限均可 JSON 配置，现场调参不改代码。
+- **多尺度滑窗**：`clip_profiles` 多套切片策略按图幅/场景切换，兼顾大图检出与小目标召回；可选灰度 CLAHE 对比度增强。
+- **in_big 小虫恢复 / 拒识**：大虫框内小虫误滤可按检测/分类置信度二次恢复；稻飞虱等场景可用 `in_big_conf` 与大虫 mask 相交比剔除误报。
+- **报出映射**：叶节点 `infer_name` / `cn_name` / `report_tier` / `size_class`，对外展示与体型几何规则解耦。
 
 ### 服务化交付
 
-- **Gradio + REST 一体**：同一进程同时提供可视化测试页与 `POST /insect_3_predict` 生产接口，兼容历史 Flask 响应格式。
-- **热切换运行模式**：Web 端切换摆拍/生产/其他后自动重启并重新加载模型，就绪探测 `/health/ready` 保障流量安全。
-- **页面级调参**：各根模型开关与关键门限可在 Gradio 临时调整，**仅影响本次运行**，便于现场 A/B 对比而不污染配置仓库。
-- **启动预加载**：服务启动即 warmup 默认管线，首请求无冷启动延迟。
+- **Gradio + REST 一体**：同一进程提供可视化测试页与 `POST /insect_3_predict`，兼容历史 Flask 响应格式。
+- **热切换运行模式**：Web 端切换摆拍/生产/其他后自动重启并重新加载模型；`/health/ready` 就绪探测。
+- **页面级调参**：各根模型开关与关键门限可在 Gradio 临时调整，**仅影响本次运行**，不污染配置仓库。
+- **启动预加载**：服务启动即 warmup 默认管线，降低首请求冷启动。
 
 ### 质量闭环
 
-- **内置标注校验**：批量跑图时对照 Pascal VOC xml 或文件名伪 GT，输出 TP/FP/FN/类型错统计与混淆矩阵 CSV。
-- **过滤透明化**：`collect_filtered=True` 返回被滤实例及 `filter_reason`（门限 / 分类 other / dia / mask_rate 等），问题定位可解释。
+- **内置标注校验**：批量跑图对照 Pascal VOC xml 或文件名伪 GT，输出 TP/FP/FN/类型错与混淆矩阵 CSV。
 - **增量续跑**：预测 xml 已存在则跳过，支持大规模评测断点续算。
-- **Label Studio 回流**：分类框图一键上报 LS 或本地分目录导出，加速难例收集与迭代标注。
+- **Label Studio 回流**：分类框图一键上报 LS 或本地分目录导出。
+- **离线门限优化**：`tools/optimize_size_conf_thresholds.py` 等基于已有预测 XML 网格搜索大小虫 det/cls 门限。
 
 ---
 
@@ -97,8 +115,9 @@ annotated = draw_results(image_bgr, results, output_path="out.jpg", draw_polygon
 ### 推理行为摘要
 
 - 每个启用的 `models.<id>` 为独立**根模型**，结果带 `source=<id>`。
-- `model_type`：`detect`（`PredictSize`：切片检测 → 尺寸/路由 → 可选分类）或 `segment`（`PredictSeg`：实例分割 → `out` 路由）。
-- `out` / 嵌套 `models.cls` 形成递归子图；后置 `postprocess` 做报出类映射、去重等。
+- `model_type`：`detect` / `yolo`（YOLO 检测）、`onnx` / `ort`（同管线、ONNX 后端；`.onnx` 权重亦自动识别）、`segment`（实例分割 → `out` 路由）。
+- 检测根走 `PredictSize`：切片检测 → 尺寸/路由 → 可选嵌套分类；分割根走 `PredictSeg`。
+- `out` / 嵌套 `models.cls` 形成递归子图；后置 `postprocess` 做几何合并、相对尺寸、报出档位、去重等。
 - `predict_cfg.parallel_detect_seg=true` 时，detect 与 segment 根可并发执行。
 
 ### 统一输出格式
@@ -117,7 +136,7 @@ annotated = draw_results(image_bgr, results, output_path="out.jpg", draw_polygon
 ```
 
 - **`source`**：根模型 ID。
-- **`collect_filtered=True`** 时另返回被过滤项，含 `filtered`、`filter_reason`（如 `threshold` / `cls` / `dia` / `mask_rate` 等）。
+- **`collect_filtered=True`** 时另返回被过滤项，含 `filtered`、`filter_reason`（如 `threshold` / `cls` / `dia` / `mask_rate` / `relative_size` 等）。
 - 完整字段与过滤语义见 [算法配置说明.md §8](./算法配置说明.md#8-统一输出格式predict_all)。
 
 ### 批量运行（`__main__`）
@@ -227,13 +246,13 @@ app = create_serving_app(config_path=None, cache_size=3, infer_device="cuda:0")
 
 | 文件 / 目录 | 说明 |
 |:---|:---|
-| **`predict_all.py`** | 统一推理主入口（detect/segment 多根、递归 cls、`draw_results`、批量校验） |
+| **`predict_all.py`** | 统一推理主入口（detect/onnx/segment 多根、递归 cls、`draw_results`、批量校验） |
 | **`predict_all_gradio.py`** | Gradio 测试服务 + `/insect_3_predict` REST |
 | **`predict_all_xingneng.py`** | 性能压测脚本（基于 `predict_all`） |
 | `config/` | 静态配置与加载模块：JSON、`cls_merge.py`、`insect_info.py` 等（见 `config/AGENTS.md`） |
 | `config_paths.py` | 配置路径、`run_model` profile 合并、`resolve_effective_insect_alg_path()` |
-| `predict/` | 底层模型：`model_detect.py`（检测、切片、IoR/合并）、`model_cls*.py`（分类/批推理/GPU 裁切）、`model_seg.py`、`model_trt.py` 等 |
-| `predict_size.py` | **`PredictSize`**：切片检测 → `size.json` 尺寸过滤 → 可选分类 |
+| `predict/` | 底层模型：`model_detect.py`（YOLO 检测）、`model_detect_onnx.py`（ONNX）、`model_cls*.py` / `model_cls_timm.py`、`model_seg.py`、`model_trt.py` 等 |
+| `predict_size.py` | **`PredictSize`**：切片检测 → 尺寸/路由 → 可选分类（YOLO/ONNX 共用） |
 | `predict_seg.py` / `predict_seg_lib.py` | **`PredictSeg`** 与分割路由、多边形后处理、VOC/校验工具函数 |
 | `predict_size_validate_lib.py` | 标注校验、混淆矩阵、评估绘图共用库 |
 | `predict_worker_pool.py` | `run_count>1` 时的多进程推理池 |
@@ -241,7 +260,7 @@ app = create_serving_app(config_path=None, cache_size=3, infer_device="cuda:0")
 | `predict_mark.py` | 标注/标记辅助 |
 | `ls_classification_ingest.py` / `ls_seg_classification_ingest.py` | 分类框图上报 Label Studio 或本地导出 |
 | `test_api.py` / `test_api_yin.py` | REST 接口测试 |
-| `tools/` | ROI 预处理、配置工具等 |
+| `tools/` | ONNX/TRT 导出、ROI、XML 分析、门限网格搜索等（见 `tools/README.md`） |
 | `算法配置说明.md` | **`insect_alg_all.json` 字段说明**（运维必读） |
 
 ---
@@ -252,3 +271,4 @@ app = create_serving_app(config_path=None, cache_size=3, infer_device="cuda:0")
 - 请从项目根运行，或设置 `PYTHONPATH` 包含 `insect/` 目录。
 - 修改 JSON 配置或切换 `run_model` 后，需 **`release()` 并重建管线**或**重启 Gradio/uvicorn 进程**，进程内会缓存模型权重。
 - 模型路径：配置中 `model_dir` 按操作系统解析；单模型 `model` 字段建议使用部署机上的绝对路径。
+- 依赖：基础见 `requirments.txt`；ONNX / TRT / 5090 等环境见 `requirments-export-onnx.txt`、`requirments-trt.txt`、`requirments-wsl-5090.txt` 等。

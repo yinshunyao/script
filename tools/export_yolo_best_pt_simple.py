@@ -18,8 +18,8 @@ from ultralytics.nn.tasks import attempt_load_one_weight
 from ultralytics.utils.torch_utils import strip_optimizer
 
 # --- 按需修改 ---
-ckpt_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/20260426-large-02-insect/epoch129.pt'
-output_path = '/Users/shunyaoyin/Documents/code/ai-company/insect/doc/测试结果/大虫框选/20260426-large-02-insect/best.pt'
+ckpt_path = '/Volumes/shunyao-h1/models-test/seg-v3.13/3.13.9/temp.pt'
+output_path = '/Volumes/shunyao-h1/models-test/seg-v3.13/'
 # 与 best.pt 一致：True=官方 strip（推荐）；False=仅导出 state_dict 等小体积（需自管架构）
 USE_STRIP_OPTIMIZER = True
 

@@ -138,7 +138,7 @@ def should_skip(src: Path, dst: Path, *, skip_if_up_to_date: bool, overwrite: bo
     return dst.stat().st_mtime >= src.stat().st_mtime
 
 
-def gen_best_pt(
+def export_yolo_best_pt(
     input_path: str | Path,
     *,
     output_path: str | Path | None = None,
@@ -183,7 +183,7 @@ def gen_best_pt(
 
 
 def main() -> None:
-    outputs = gen_best_pt(
+    outputs = export_yolo_best_pt(
         INPUT_PATH,
         output_path=OUTPUT_PATH or None,
         output_name=OUTPUT_NAME,

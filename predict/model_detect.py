@@ -6,11 +6,13 @@
 # @Detail  : 
 # @Software: PyCharm
 import logging
-import torchvision
-import torch
-import numpy as np
-import cv2
+from pathlib import Path
 from typing import Any, NamedTuple
+
+import cv2
+import numpy as np
+import torch
+import torchvision
 from script.predict.model_infer_lock import model_infer_guard
 from script.predict.model_yolo_cache import get_cached_yolo
 from script.predict.model_channel import (
@@ -20,6 +22,92 @@ from script.predict.model_channel import (
     scale_xyxy,
     yolo_input_coord_scale,
 )
+
+_CLASS_NAME_FILE_SUFFIXES = {".txt", ".names", ".lst"}
+
+
+def coerce_detect_class_names(names) -> dict[int, str]:
+    """YOLO ``model.names`` 或 ``["insect"]`` 列表 → ``{cls_id: name}``。"""
+    out: dict[int, str] = {}
+    if isinstance(names, dict):
+        for k, v in names.items():
+            try:
+                out[int(k)] = str(v)
+            except (TypeError, ValueError):
+                continue
+        return out
+    if isinstance(names, (list, tuple)):
+        for i, v in enumerate(names):
+            out[i] = str(v)
+    return out
+
+
+def read_detect_class_names_file(path: str | Path) -> list[str]:
+    """读 YOLO ``classes.txt``：一行一类；``#`` 注释；``拼音<tab>中文`` 取拼音。"""
+    file_path = Path(path)
+    names: list[str] = []
+    for raw in file_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        token = line.split("\t", 1)[0].strip()
+        if token:
+            names.append(token)
+    if not names:
+        raise ValueError(f"class_names 文件无有效类名: {file_path}")
+    return names
+
+
+def resolve_detect_class_names(
+    value,
+    *,
+    relative_to: str | Path | None = None,
+) -> list[str] | None:
+    """
+    根配置 ``class_names`` → 类名列表。
+
+    列表原样（去空白）；字符串若是类别文件则读文件，否则视为单个类名（如 ``insect``）。
+    相对路径相对 ``relative_to``（文件则用其父目录，一般为 onnx 路径）。
+    """
+    if value is None:
+        return None
+    if isinstance(value, (list, tuple)):
+        names = [str(x).strip() for x in value if str(x).strip()]
+        return names or None
+    if not isinstance(value, str):
+        raise TypeError(
+            f"class_names 须为列表或文件路径，实际: {type(value).__name__}"
+        )
+    text = value.strip()
+    if not text:
+        return None
+    candidate = Path(text).expanduser()
+    bases: list[Path] = []
+    if relative_to is not None:
+        base = Path(relative_to).expanduser()
+        if base.is_file() or base.suffix:
+            base = base.parent
+        bases.append(base)
+    search: list[Path] = []
+    if candidate.is_absolute():
+        search.append(candidate)
+    else:
+        for base in bases:
+            search.append(base / candidate)
+        search.append(Path.cwd() / candidate)
+    looks_like_file = (
+        candidate.suffix.lower() in _CLASS_NAME_FILE_SUFFIXES
+        or any(sep in text for sep in ("/", "\\"))
+        or any(p.is_file() for p in search)
+    )
+    if not looks_like_file:
+        return [text]
+    for path in search:
+        if path.is_file():
+            return read_detect_class_names_file(path)
+    tried = ", ".join(str(p) for p in search)
+    raise FileNotFoundError(f"class_names 文件不存在: {text}（已试: {tried}）")
+
 
 def _pad_background_value(clip):
     """与 clip 同 dtype 的「白底」填充标量：uint8 为 255；浮点按 0~1 / 0~255 推断。"""
@@ -64,6 +152,10 @@ class ClipProfile(NamedTuple):
     overlap_size: int
     clip_start: int = 0
     seg_imgsz: int = 0
+    # None：未走 clip_profiles 数组，沿用根级 augment；bool：该套显式开关
+    augment: bool | None = None
+    # None：该套不按长宽过滤；[min, max]：宽与高均须落在闭区间
+    out_size: tuple[int, int] | None = None
 
 
 class _DetectClipTile(NamedTuple):
@@ -139,6 +231,8 @@ def resolve_clip_profiles(
     解析滑窗切片配置：``clip_profiles`` 非空时优先；否则单套 ``clip_size``/``overlap_size``。
     ``clip_start``：滑窗网格起始像素（x、y 同值）；``0`` 表示从 ``(0,0)`` 起。
     ``clip_profiles[].seg_imgsz``：该套 YOLO ``imgsz``；``<=0`` 或未写表示推理时用外层 ``seg_imgsz``。
+    ``clip_profiles[].augment``：该套 YOLO TTA；未写视为 ``false``，不回退根级 ``augment``。
+    ``clip_profiles[].out_size``：``[min, max]``，该套输出框宽与高的像素闭区间；未写不过滤。
     ``overlap_size: 0`` 表示整图单窗（不滑窗）；``overlap_size > 0`` 为滑窗重叠像素。
     ``clip_size: 0`` 表示不切片、整图推理（``overlap_size`` 忽略，规范为 0）。
     跳过 ``enable: false`` 或尺寸无效的项；若全部无效则回退顶层字段。
@@ -154,13 +248,15 @@ def resolve_clip_profiles(
             os = int(item.get("overlap_size", 0) or 0)
             st = int(item.get("clip_start", 0) or 0)
             si = max(0, int(item.get("seg_imgsz", 0) or 0))
+            aug = bool(item.get("augment", False))
+            out_sz = parse_clip_out_size(item.get("out_size"))
             if cs == 0:
-                out.append(ClipProfile(0, 0, max(0, st), si))
+                out.append(ClipProfile(0, 0, max(0, st), si, aug, out_sz))
                 continue
             slide_ok = cs > 0 and os > 0
             whole_ok = cs > 0 and os == 0
             if slide_ok or whole_ok:
-                out.append(ClipProfile(cs, os, max(0, st), si))
+                out.append(ClipProfile(cs, os, max(0, st), si, aug, out_sz))
         if out:
             return out
     return [
@@ -191,6 +287,45 @@ def resolve_profile_imgsz(
         return int(default_imgsz)
     md = int(model_default or 0)
     return md if md > 0 else None
+
+
+def parse_clip_out_size(raw) -> tuple[int, int] | None:
+    """``out_size: [min, max]``；非法或未配置返回 None（不过滤）。"""
+    if raw is None or not isinstance(raw, (list, tuple)) or len(raw) < 2:
+        return None
+    try:
+        return int(raw[0]), int(raw[1])
+    except (TypeError, ValueError):
+        return None
+
+
+def resolve_profile_augment(
+    profile: ClipProfile | tuple | None,
+    default: bool = False,
+) -> bool:
+    """数组项内 ``augment`` 优先；``None``（回退顶层单套）时用 ``default``。"""
+    if isinstance(profile, ClipProfile) and profile.augment is not None:
+        return bool(profile.augment)
+    return bool(default)
+
+
+def merge_profile_out_size(
+    profile: ClipProfile | tuple | None,
+    min_size: int | None,
+    max_size: int | None,
+) -> tuple[int | None, int | None]:
+    """将该套 ``out_size`` 与调用方 min/max 合成更紧的宽、高门限。"""
+    out_size = profile.out_size if isinstance(profile, ClipProfile) else None
+    if not out_size:
+        return min_size, max_size
+    lo, hi = int(out_size[0]), int(out_size[1])
+    new_min = lo
+    if min_size:
+        new_min = max(int(min_size), lo)
+    new_max = hi
+    if max_size is not None:
+        new_max = min(int(max_size), hi)
+    return new_min, new_max
 
 
 def unpack_clip_profile(profile: ClipProfile | tuple) -> tuple[int, int, int]:
@@ -228,6 +363,82 @@ def parse_clip_detect_id(detect_id: str | None) -> tuple[int, int, int] | None:
         return profile_idx, int(parts[0]), int(parts[1])
     except ValueError:
         return None
+
+
+def resolve_row_clip_profile_idx(row: dict) -> int | None:
+    """优先 ``clip_profile_idx``，否则从 ``detect_id`` 解析；无法判定时返回 ``None``。"""
+    if row.get("clip_profile_idx") is not None:
+        try:
+            return int(row["clip_profile_idx"])
+        except (TypeError, ValueError):
+            pass
+    parsed = parse_clip_detect_id(row.get("detect_id"))
+    if parsed is None:
+        return None
+    return int(parsed[0])
+
+
+def box_outer_strictly_contains_inner(outer: dict, inner: dict) -> bool:
+    """外框几何上严格包含内框（四边均在内部），且内框面积严格小于外框。"""
+    try:
+        ox1, oy1 = float(outer["x1"]), float(outer["y1"])
+        ox2, oy2 = float(outer["x2"]), float(outer["y2"])
+        ix1, iy1 = float(inner["x1"]), float(inner["y1"])
+        ix2, iy2 = float(inner["x2"]), float(inner["y2"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    if ix1 < ox1 or iy1 < oy1 or ix2 > ox2 or iy2 > oy2:
+        return False
+    area_o = max(0.0, ox2 - ox1) * max(0.0, oy2 - oy1)
+    area_i = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
+    if area_o <= 0 or area_i <= 0 or area_i >= area_o:
+        return False
+    return True
+
+
+def apply_split_by_scale_filter(
+    rows: list[dict],
+    *,
+    split_if_contain: int,
+) -> None:
+    """
+    多尺度大框误检抑制（原地修改）。
+
+    若某未过滤大框严格包含来自**另一** ``clip_profile`` 的未过滤小框个数
+    ``>= split_if_contain``，则将该大框标 ``filter=True``，并写入
+    ``split_by_scale_count`` / ``filter_reason``。
+
+    ``split_if_contain <= 0`` 或有效尺度不足 2 套时不处理。
+    """
+    thr = int(split_if_contain)
+    if thr <= 0 or not rows:
+        return
+    active = [r for r in rows if not r.get("filter")]
+    if len(active) < 2:
+        return
+    profile_ids = {
+        p for p in (resolve_row_clip_profile_idx(r) for r in active) if p is not None
+    }
+    if len(profile_ids) < 2:
+        return
+
+    for outer in active:
+        op = resolve_row_clip_profile_idx(outer)
+        if op is None:
+            continue
+        inner_cnt = 0
+        for inner in active:
+            if inner is outer:
+                continue
+            ip = resolve_row_clip_profile_idx(inner)
+            if ip is None or ip == op:
+                continue
+            if box_outer_strictly_contains_inner(outer, inner):
+                inner_cnt += 1
+        if inner_cnt >= thr:
+            outer["filter"] = True
+            outer["split_by_scale_count"] = int(inner_cnt)
+            outer["filter_reason"] = f"split_by_scale({int(inner_cnt)})"
 
 
 def format_clip_slice_label_suffix(row: dict) -> str:
@@ -347,12 +558,8 @@ class ModelDetector:
 
         self.model_path = str(model_path)
         self._infer_task: str | None = None
-        # 加载模型（设备在predict时自动处理）
-        self.model = get_cached_yolo(model_path)
-        self.model_ch = detect_model_input_channels(self.model)
-        if self.model_ch == 1:
-            logging.info(f"检测模型为单通道(ch=1)，推理将以单通道灰度输入: {model_path}")
-            mps_safe_device(self.device, self.model_ch)
+        self.names: dict[int, str] = {}
+        self._load_weights(model_path)
 
         # 整体输出置信度
         self.conf_thresh = conf_thresh
@@ -376,6 +583,19 @@ class ModelDetector:
                 self.gray_clahe_tile,
                 model_path,
             )
+
+    def _load_weights(self, model_path) -> None:
+        """YOLO 权重加载；ONNX 子类覆盖本方法。"""
+        self.model = get_cached_yolo(model_path)
+        self.model_ch = detect_model_input_channels(self.model)
+        self.names = coerce_detect_class_names(getattr(self.model, "names", None))
+        if self.model_ch == 1:
+            logging.info(f"检测模型为单通道(ch=1)，推理将以单通道灰度输入: {model_path}")
+            mps_safe_device(self.device, self.model_ch)
+
+    def class_name_of(self, cls_id: int) -> str:
+        cid = int(cls_id)
+        return str(self.names.get(cid, cid))
 
     def _auto_detect_device(self):
         """
@@ -407,6 +627,7 @@ class ModelDetector:
         nms_iou: float | None = None,
         max_det: int | None = None,
         nms_agnostic: bool | None = None,
+        augment: bool | None = None,
     ):
         kwargs = {}
         if imgsz:
@@ -426,6 +647,7 @@ class ModelDetector:
         if nms_agnostic is not None:
             kwargs["agnostic_nms"] = bool(nms_agnostic)
         use_imgsz = int(imgsz or 0)
+        use_aug = self.augment if augment is None else bool(augment)
         source_shape = image.shape[:2]
         yolo_in = preprocess_yolo_input(
             image,
@@ -441,7 +663,7 @@ class ModelDetector:
                 yolo_in,
                 verbose=False,
                 device=mps_safe_device(device or self.device, self.model_ch),
-                augment=self.augment,
+                augment=use_aug,
                 half=self.half,
                 conf=float(conf),
                 **kwargs,
@@ -479,6 +701,7 @@ class ModelDetector:
         nms_iou: float | None = None,
         max_det: int | None = None,
         nms_agnostic: bool | None = None,
+        augment: bool | None = None,
     ) -> list[list]:
         """多 tile YOLO detect batch；单张时退化为 ``_predict``。"""
         if not images:
@@ -495,6 +718,7 @@ class ModelDetector:
                     nms_iou=nms_iou,
                     max_det=max_det,
                     nms_agnostic=nms_agnostic,
+                    augment=augment,
                 )
             ]
         kwargs: dict[str, Any] = {}
@@ -515,6 +739,7 @@ class ModelDetector:
         if nms_agnostic is not None:
             kwargs["agnostic_nms"] = bool(nms_agnostic)
         use_imgsz = int(imgsz or 0)
+        use_aug = self.augment if augment is None else bool(augment)
         yolo_inputs = []
         scales: list[tuple[float, float]] = []
         for image in images:
@@ -535,7 +760,7 @@ class ModelDetector:
                 yolo_inputs,
                 verbose=False,
                 device=mps_safe_device(device or self.device, self.model_ch),
-                augment=self.augment,
+                augment=use_aug,
                 half=self.half,
                 conf=float(conf),
                 **kwargs,
@@ -591,6 +816,7 @@ class ModelDetector:
         nms_agnostic: bool | None,
         all_box: list,
         debug_clip: bool = False,
+        augment: bool | None = None,
     ) -> None:
         bs = max(1, int(clip_batch_size or 1))
         n_batches = (len(tiles) + bs - 1) // bs if tiles else 0
@@ -612,6 +838,7 @@ class ModelDetector:
                         nms_iou=nms_iou,
                         max_det=max_det,
                         nms_agnostic=nms_agnostic,
+                        augment=augment,
                     )
                     for t in chunk
                 ]
@@ -624,6 +851,7 @@ class ModelDetector:
                     nms_iou=nms_iou,
                     max_det=max_det,
                     nms_agnostic=nms_agnostic,
+                    augment=augment,
                 )
             for tile, results in zip(chunk, batch_results):
                 if tile.pad_off_x or tile.pad_off_y:
@@ -695,7 +923,7 @@ class ModelDetector:
                 "y2": int(box[3]),
                 "conf": float(filtered_scores[idx].item()),
                 "cls_id": int(filtered_cls[idx]),
-                "class_name": self.model.names[int(filtered_cls[idx])],
+                "class_name": self.class_name_of(filtered_cls[idx]),
             }
             for idx, box in enumerate(filtered_boxes)
         ]
@@ -750,10 +978,9 @@ class ModelDetector:
             ux2 = max(b[2] for b in group)
             uy2 = max(b[3] for b in group)
             flt = any(self._box_row_filtered(b) for b in group)
-            # edge_min_dist：沿用置信度最高框（pick）的值（若存在）
-            # edge_min_dist = pick[8] if len(pick) > 8 else None
-            # 使用最大值
-            edge_min_dist = max(b[8] for b in group)
+            # edge_min_dist：组内非 None 取最大；全图 profile / 预过滤失败时可为 None
+            dists = [b[8] for b in group if len(b) > 8 and b[8] is not None]
+            edge_min_dist = max(dists) if dists else None
             merged = [ux1, uy1, ux2, uy2, max_conf, pick[5], pick[6], flt, edge_min_dist]
             if len(pick) > 9 and pick[9] is not None:
                 merged.append(pick[9])
@@ -767,7 +994,7 @@ class ModelDetector:
                 "y2": int(box[3]),
                 "conf": float(box[4]),
                 "cls_id": int(box[5]),
-                "class_name": self.model.names[int(box[5])],
+                "class_name": self.class_name_of(box[5]),
                 "detect_id": box[6],
                 "filter": bool(box[7]) if len(box) > 7 else False,
                 "edge_min_dist": (None if len(box) <= 8 or box[8] is None else float(box[8])),
@@ -839,7 +1066,7 @@ class ModelDetector:
                 "y2": int(box[3]),
                 "conf": float(box[4]),
                 "cls_id": int(box[5]),
-                "class_name": self.model.names[int(box[5])],
+                "class_name": self.class_name_of(box[5]),
                 "detect_id": box[6],
                 "filter": False,
             }
@@ -994,6 +1221,8 @@ class ModelDetector:
                 edge_reject_conf_threshold=None,
                 device=None,
                 return_all_rows: bool = False,
+                split_by_scale: bool = False,
+                split_if_contain: int = 2,
                 ):
         """
         推理
@@ -1010,6 +1239,8 @@ class ModelDetector:
             None 时使用 self.conf_thresh。若需「仅按距离、忽略置信度」可传入大于 1 的值。
         :param clip_profiles: 多套切片；多于 1 套时依次滑窗后统一 merge
         :param clip_start: 单套滑窗时网格起始像素（x、y 同值）；``0`` 为 ``(0,0)``
+        :param split_by_scale: 多尺度时是否启用跨尺度大框误检抑制（默认关闭）
+        :param split_if_contain: 大框含另一尺度小框个数门限（``>=`` 则取消大框）
         :param debug: 调试用
         :return:
         """
@@ -1035,11 +1266,18 @@ class ModelDetector:
                 device=device,
                 return_all_rows=return_all_rows,
                 clip_batch_size=clip_batch_size,
+                split_by_scale=split_by_scale,
+                split_if_contain=split_if_contain,
             )
         if clip_profiles is not None and len(clip_profiles) == 1:
             clip_size, overlap_size, clip_start = unpack_clip_profile(clip_profiles[0])
+            profile_aug = resolve_profile_augment(clip_profiles[0], self.augment)
+            min_size, max_size = merge_profile_out_size(
+                clip_profiles[0], min_size, max_size
+            )
         else:
             clip_start = max(0, int(clip_start or 0))
+            profile_aug = None
         all_box = []
         kwargs = {}
         infer_conf = self._infer_conf(return_all_rows)
@@ -1061,6 +1299,7 @@ class ModelDetector:
                 nms_iou=nms_iou,
                 max_det=max_det,
                 nms_agnostic=nms_agnostic,
+                augment=profile_aug,
                 **kwargs,
             )
             results = self._convert_result(results)
@@ -1109,6 +1348,7 @@ class ModelDetector:
             nms_agnostic=nms_agnostic,
             all_box=all_box,
             debug_clip=debug_clip,
+            augment=profile_aug,
         )
 
         results = self.merge_ior(all_box)
@@ -1145,6 +1385,8 @@ class ModelDetector:
         device=None,
         return_all_rows: bool = False,
         clip_batch_size: int = 1,
+        split_by_scale: bool = False,
+        split_if_contain: int = 2,
     ):
         """多套切片依次推理，最后统一 merge_ior 与边缘过滤。"""
         all_box = []
@@ -1153,6 +1395,8 @@ class ModelDetector:
 
         for profile_idx, profile in enumerate(profiles):
             clip_size, overlap_size, clip_start = unpack_clip_profile(profile)
+            profile_aug = resolve_profile_augment(profile, self.augment)
+            p_min, p_max = merge_profile_out_size(profile, min_size, max_size)
             if uses_clip_inference_path(w, h, clip_size, overlap_size):
                 edge_clip_size = max(edge_clip_size, int(clip_size))
                 tiles = [
@@ -1175,14 +1419,15 @@ class ModelDetector:
                     infer_conf=infer_conf,
                     clip_batch_size=clip_batch_size,
                     padding=padding,
-                    min_size=min_size,
-                    max_size=max_size,
+                    min_size=p_min,
+                    max_size=p_max,
                     device=device,
                     nms_iou=nms_iou,
                     max_det=max_det,
                     nms_agnostic=nms_agnostic,
                     all_box=all_box,
                     debug_clip=debug_clip,
+                    augment=profile_aug,
                 )
                 continue
 
@@ -1202,6 +1447,7 @@ class ModelDetector:
                 nms_iou=nms_iou,
                 max_det=max_det,
                 nms_agnostic=nms_agnostic,
+                augment=profile_aug,
             )
             results = self._convert_result(results)
             for r in results:
@@ -1215,9 +1461,9 @@ class ModelDetector:
                     continue
                 w_b = max(0, int(r["x2"]) - int(r["x1"]))
                 h_b = max(0, int(r["y2"]) - int(r["y1"]))
-                if min_size and (w_b < min_size or h_b < min_size):
+                if p_min and (w_b < p_min or h_b < p_min):
                     r["filter"] = True
-                elif max_size and (w_b > max_size or h_b > max_size):
+                elif p_max and (w_b > p_max or h_b > p_max):
                     r["filter"] = True
                 r["clip_tile_size"] = int(clip_size) if clip_size else None
                 row = [
@@ -1235,12 +1481,48 @@ class ModelDetector:
                     row.append(r["clip_tile_size"])
                 all_box.append(row)
 
+        split_meta: dict[str, int] = {}
+        if split_by_scale and int(split_if_contain) > 0 and all_box:
+            tmp_rows: list[dict] = []
+            for box in all_box:
+                r = {
+                    "x1": box[0],
+                    "y1": box[1],
+                    "x2": box[2],
+                    "y2": box[3],
+                    "detect_id": box[6],
+                    "filter": bool(box[7]) if len(box) > 7 else False,
+                }
+                parsed = parse_clip_detect_id(box[6] if len(box) > 6 else None)
+                if parsed is not None:
+                    r["clip_profile_idx"] = int(parsed[0])
+                tmp_rows.append(r)
+            apply_split_by_scale_filter(
+                tmp_rows, split_if_contain=int(split_if_contain)
+            )
+            for box, r in zip(all_box, tmp_rows):
+                if r.get("filter"):
+                    if len(box) > 7:
+                        box[7] = True
+                    cnt = r.get("split_by_scale_count")
+                    did = r.get("detect_id")
+                    if cnt is not None and did is not None:
+                        split_meta[str(did)] = int(cnt)
+
         results = self.merge_ior(all_box)
+        if split_meta:
+            for r in results:
+                did = str(r.get("detect_id") or "")
+                if did in split_meta and r.get("filter"):
+                    cnt = split_meta[did]
+                    r["split_by_scale_count"] = cnt
+                    r["filter_reason"] = f"split_by_scale({cnt})"
         results = self._apply_post_merge_edge_filter(
             results,
             w,
             h,
-            edge_clip_size or max((cs for cs, _os in profiles), default=0),
+            edge_clip_size
+            or max((int(p.clip_size) for p in profiles), default=0),
             edge_reject_distance=edge_reject_distance,
             edge_reject_conf_threshold=edge_reject_conf_threshold,
         )

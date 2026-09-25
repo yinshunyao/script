@@ -43,7 +43,7 @@ def _preflight_torch_torchvision() -> None:
         raise RuntimeError(
             "torch 与 torchvision 版本/CUDA 构建不匹配，无法加载 ultralytics。\n"
             f"  当前: torch {torch.__version__}, torchvision {tv_ver}\n"
-            "  请先成对重装（勿单独升级其一），再执行 acc_tensorRT.py。\n"
+            "  请先成对重装（勿单独升级其一），再执行 export_tensorrt_engine.py。\n"
             "  CUDA 12.8 示例：\n"
             "    pip install torch==2.7.0+cu128 torchvision==0.22.0+cu128 "
             "--find-links https://mirrors.aliyun.com/pytorch-wheels/cu128/ --force-reinstall\n"
@@ -64,7 +64,7 @@ _INSECT_ROOT = _FILE.parents[2]
 if str(_INSECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_INSECT_ROOT))
 
-# 与 gen_best_pt 一致：含自定义 criterion 的中间 ckpt 反序列化占位
+# 与 export_yolo_best_pt 一致：含自定义 criterion 的中间 ckpt 反序列化占位
 _CUSTOM_LOSS_STUBS = ("BCEDiceLoss", "MultiChannelDiceLoss")
 
 _DEFAULT_PT_GLOBS = ("*.pt",)
@@ -839,7 +839,7 @@ def main(
 if __name__ == "__main__":
     # ------------------------------------------------------------------ #
     #  按需修改：以下为本脚本全部入口配置（集中维护）
-    # /home/shunyao/miniconda310/envs/yolo11/bin/python3 acc_tensorRT.py
+    # /home/shunyao/miniconda310/envs/yolo11/bin/python3 export_tensorrt_engine.py
     # 
     # ------------------------------------------------------------------ #
 

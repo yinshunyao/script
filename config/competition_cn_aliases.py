@@ -18,6 +18,7 @@ COMPETITION_CANONICAL_CN: dict[str, str] = {
     "huangheyilijingui": "黄褐丽金龟",
     "tonglvyilijingui": "铜绿异丽金龟",
     "zhonghualanbujia": "中华星步甲",
+    "baigouxiaojuane": "白钩小卷蛾",
 }
 
 # 历史标注 / 样本目录 / 异名 → 拼音（canonical 见上表或 insect_alg_all ``cn_name``）
@@ -56,6 +57,7 @@ COMPETITION_CN_ALIASES: dict[str, str] = {
     "叩甲": "koujia",
     "盲蝽": "mangchun",
     "棉双斜卷蛾": "mianshuangxiejuane",
+    "白勾小卷蛾": "baigouxiaojuane",  # 历史错写；正式名白钩小卷蛾
 }
 
 # alg out / top 清单拼音 key → 内部 canonical 拼音（模型输出与训练目录）

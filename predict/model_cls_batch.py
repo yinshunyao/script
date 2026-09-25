@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""YOLO 嵌套分类 crop 批量推理：同权重、同预处理参数的多 crop 拼 batch（.pt / TensorRT .engine）。"""
+"""YOLO / ONNX 嵌套分类 crop 批量推理：同权重、同预处理参数的多 crop 拼 batch（.pt / .onnx / TensorRT .engine）。"""
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from script.predict.model_cls_crop import (
 )
 from script.predict.model_gpu_crop import cls_job_can_defer_gpu_crop, get_gpu_crop_session
 from script.predict.model_cls_factory import cls_cache_key, create_classifier, resolve_cls_backend
+from script.predict.model_cls_onnx import ModelClsOnnx
 from script.config_paths import get_predict_cfg
 from script.predict.model_trt import is_trt_engine_path, read_trt_engine_max_batch, resolve_inference_model_path
 from script.predict_seg_lib import (
@@ -33,6 +34,8 @@ from script.predict_seg_lib import (
 log = logging.getLogger(__name__)
 
 DEFAULT_CLS_BATCH_SIZE = 32
+_BATCH_CLS_TYPES = (ModelCls, ModelClsOnnx)
+_CLS_BATCH_BACKENDS = ("yolo", "onnx")
 
 _yolo_cls_batch_cache: dict[tuple[str, str, str], bool] = {}
 
@@ -50,11 +53,11 @@ def _cls_yolo_batch_cache_key(cfg: dict[str, Any]) -> tuple[str, str, str] | Non
 
 def cfg_uses_yolo_cls_batch(cfg: dict[str, Any]) -> bool:
     """
-    嵌套 ``models.cls`` 是否走 YOLO 批量预填（``ModelCls.predict_batch``）。
+    嵌套 ``models.cls`` 是否走 crop 批量预填（``predict_batch``）。
 
-    - backend 为 ``yolo``（非 ConvNeXt/timm）
+    - backend 为 ``yolo`` 或 ``onnx``（非 ConvNeXt/timm PyTorch）
     - ``trt_switch=true`` 且 CUDA 可用时须存在可加载的 ``.engine`` 才批量
-    - 否则使用 ``.pt``，YOLO11 classify 同样支持 list batch 推理
+    - 否则使用 ``.pt`` / ``.onnx``，YOLO11 classify 与分类 ONNX 均支持 list batch
 
     同一 ``models.cls`` 配置在进程内只解析一次 backend（P1）。
     """
@@ -64,7 +67,7 @@ def cfg_uses_yolo_cls_batch(cfg: dict[str, Any]) -> bool:
     cached = _yolo_cls_batch_cache.get(cache_key)
     if cached is not None:
         return cached
-    uses = resolve_cls_backend(cfg, cache_key[0]) == "yolo"
+    uses = resolve_cls_backend(cfg, cache_key[0]) in _CLS_BATCH_BACKENDS
     _yolo_cls_batch_cache[cache_key] = uses
     return uses
 
@@ -198,7 +201,7 @@ def run_cls_job_batches(
             if batch_size < requested_batch:
                 log.warning(
                     "TRT engine %s 最大 batch=%d，已将 cls_batch_size %d 限制为 %d；"
-                    "若需更大批量请用 acc_tensorRT.py 以 DYNAMIC=True, BATCH>=N 重新导出",
+                    "若需更大批量请用 export_tensorrt_engine.py 以 DYNAMIC=True, BATCH>=N 重新导出",
                     Path(engine_path).name,
                     max_batch,
                     requested_batch,
@@ -252,7 +255,9 @@ def run_cls_job_batches(
                     continue
                 out[job.cache_key()] = cls_result
 
-        backend_tag = "TRT" if is_trt_engine_path(engine_path) else "YOLO"
+        backend_tag = "TRT" if is_trt_engine_path(engine_path) else (
+            "ONNX" if engine_path.lower().endswith(".onnx") else "YOLO"
+        )
         elapsed_s = time.perf_counter() - t_group0
         n_jobs = len(items)
         n_batches = (n_jobs + batch_size - 1) // batch_size if n_jobs else 0
@@ -291,16 +296,19 @@ def _get_or_create_yolo_cls(
     device: str | None,
     *,
     cache_lock: threading.Lock | None = None,
-) -> ModelCls | None:
+) -> ModelCls | ModelClsOnnx | None:
     pad_clr = resolve_cls_pad_color(cfg.get("cls_pad_color"))
     key = cls_cache_key({**cfg, "cls_pad_color": pad_clr})
-    infer_path = resolve_inference_model_path(cfg, quiet=True) or str(
-        cfg.get("model") or ""
-    )
+    model_raw = str(cfg.get("model") or "")
+    backend = resolve_cls_backend(cfg, model_raw)
+    if backend == "yolo":
+        infer_path = resolve_inference_model_path(cfg, quiet=True) or model_raw
+    else:
+        infer_path = model_raw
     lock_ctx = cache_lock if cache_lock is not None else nullcontext()
     with lock_ctx:
         cached = cls_cache.get(key)
-        if isinstance(cached, ModelCls):
+        if isinstance(cached, _BATCH_CLS_TYPES):
             cached_path = str(getattr(cached, "model_path", "") or "")
             if cached_path == infer_path and Path(infer_path).is_file():
                 return cached
@@ -314,7 +322,7 @@ def _get_or_create_yolo_cls(
         elif cached is not None:
             cls_cache.pop(key, None)
         try:
-            log.info("加载 YOLO 嵌套分类模型: %s", infer_path)
+            log.info("加载嵌套分类模型(%s): %s", backend, infer_path)
             cls_cache[key] = create_classifier(
                 str(cfg["model"]),
                 device=device,
@@ -328,6 +336,6 @@ def _get_or_create_yolo_cls(
             cls_cache.pop(key, None)
             raise
     model = cls_cache.get(key)
-    if not isinstance(model, ModelCls):
+    if not isinstance(model, _BATCH_CLS_TYPES):
         return None
     return model

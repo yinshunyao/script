@@ -1,0 +1,17 @@
+# insect/script — 导出 / 检查 ONNX 图（非 TensorRT）
+#
+# 用途：YOLO→.onnx、onnxslim、onnx.checker。日常 Gradio / predict_all 不需要本文件。
+#
+# 约束：
+#   - Python 3.10–3.12（3.14 无 onnx 预编译 wheel，会 cmake 编译失败）
+#   - 与 requirments-trt.txt 的 onnx~=1.21 互斥；TRT 导出请只装 trt 那份
+#
+# 安装：先装 requirments.txt，再：
+#   pip install -r insect/script/requirments-export-onnx.txt
+#
+--index-url https://mirrors.aliyun.com/pypi/simple/
+--trusted-host mirrors.aliyun.com
+
+# ultralytics 导出检查偏好 <1.18
+onnx>=1.12.0,<1.18.0
+onnxslim>=0.1.56

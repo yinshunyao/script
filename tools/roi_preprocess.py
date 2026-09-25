@@ -504,7 +504,7 @@ def apply_roi_preprocess(
 
 
 if __name__ == "__main__":
-    # /Users/shunyaoyin/miniconda310/miniconda3/envs/yolo11/bin/python /Users/shunyaoyin/Documents/code/ai-company/insect/script/tools/roi_heyifei.py
+    # /Users/shunyaoyin/miniconda310/miniconda3/envs/yolo11/bin/python /Users/shunyaoyin/Documents/code/ai-company/insect/script/tools/roi_preprocess.py
     from pathlib import Path
 
     DISK_IMAGE = (
@@ -513,7 +513,7 @@ if __name__ == "__main__":
     NORMAL_IMAGE = (
         "/Volumes/shunyao-h1/训练数据/测试集/友商/220986868.jpg"
     )
-    OUTPUT_DIR = "/tmp/roi_heyifei_preview"
+    OUTPUT_DIR = "/tmp/roi_preprocess_preview"
 
     cfg = {"roi_switch": True}
     out_dir = Path(OUTPUT_DIR)

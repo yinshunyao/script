@@ -17,7 +17,7 @@ from torchvision import transforms
 
 from script.predict.model_infer_lock import model_infer_guard
 
-from script.predict.model_cls import ModelCls
+from script.predict.model_cls import ModelCls, CLS_INFER_KEEP_TOPK
 
 log = logging.getLogger(__name__)
 
@@ -201,7 +201,7 @@ class ModelClsTimm:
         return self._transform(pil)
 
     def _probs_to_result(self, probs: torch.Tensor) -> dict[str, Any]:
-        confs, ids = torch.topk(probs, k=min(5, probs.numel()))
+        confs, ids = torch.topk(probs, k=min(int(CLS_INFER_KEEP_TOPK), probs.numel()))
         topk: list[dict[str, Any]] = []
         for i in range(ids.numel()):
             cid = int(ids[i].item())

@@ -36,7 +36,7 @@ from script.predict_size_validate_lib import (
     parse_pascal_voc_objects,
     parse_pascal_voc_pred_objects,
 )
-from script.tools.xml_fenxi import (
+from script.tools.analyze_pred_xml_conf import (
     THRESHOLD_REF_MIN_SAMPLES,
     _gt_objects_to_rows,
     assess_threshold_reliability,

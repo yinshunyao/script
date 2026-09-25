@@ -1,0 +1,38 @@
+# insect/script — TensorRT .engine 导出（仅 Linux NVIDIA GPU）
+#
+# 用途：tools/export_tensorrt_engine.py、ultralytics export(format=engine)，
+#       TRT11 FP16/INT8 图内量化（nvidia-modelopt）。
+#
+# ⚠ Python 3.10–3.12。勿在 Windows / Python 3.14 上装本文件。
+# 与 requirments-export-onnx.txt（onnx<1.18）互斥；专用 venv。
+#
+# 安装：
+#   1) pip install -r insect/train/requirements-cuda*.txt
+#   2) pip install -r insect/script/requirments-trt.txt
+# 本文件已含推理依赖，一般不必再装 requirments.txt。
+#
+--index-url https://mirrors.aliyun.com/pypi/simple/
+--trusted-host mirrors.aliyun.com
+
+# --- 核心数值 / 图像 ---
+numpy>=1.23.0,<3
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# --- YOLO ---
+ultralytics==8.4.41
+
+# --- TensorRT + ModelOpt（Linux）---
+# tensorrt 若 pip 装不上，按 NVIDIA 文档安装与 CUDA 匹配的 TensorRT wheel
+tensorrt>7.0.0,!=10.1.0,!=10.2.0
+# nvidia-modelopt[onnx]>=0.44 依赖 onnx~=1.21.0
+onnx>=1.21.0,<1.22.0
+onnxslim>=0.1.76
+onnxruntime-gpu>=1.15.0
+nvidia-modelopt[onnx]>=0.44
+
+# --- Gradio / API / 报表（导出机若也跑页面可一并装）---
+gradio>=5.31.0,<6.0.0
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+matplotlib>=3.7.0

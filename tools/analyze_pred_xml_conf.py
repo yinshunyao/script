@@ -843,16 +843,12 @@ def export_edge_image_conf_report_csv(
 
 
 if __name__ == "__main__":
-    # ----------------------- 需要你改的参数 -----------------------
-    # 测试集：图片与同目录 GT xml
-    GT_DIR = "/Volumes/shunyao-h1/测试数据/北京田间第1批/辛集市全标注5-6"
-    # 推理输出目录：与 GT 保持相同相对路径的预测 xml（OUTPUT_XML=True 且 OUTPUT_XML_DUAL_CONF=True）
-    PRED_DIR = "/Volumes/shunyao-h1/测试数据/北京田间第1批/辛集市全标注5-6-3.13.4-3.10.2"
+    # -----------------------   需要你改的参数 -----------------------
+    # /Users/shunyaoyin/miniconda310/miniconda3/envs/yolo11/bin/python3   /Users/shunyaoyin/Documents/code/ai-company/insect/script/tools/analyze_pred_xml_conf.py
 
-
-    # GT_DIR = "/Volumes/shunyao-h1/训练数据/北京比赛/北京设备全标注0621"
+    GT_DIR = "/Volumes/shunyao-h1/比赛数据/2026辛集正式比赛"
     # 推理输出目录：与 GT 保持相同相对路径的预测 xml（OUTPUT_XML=True 且 OUTPUT_XML_DUAL_CONF=True）
-    # PRED_DIR = "/Volumes/shunyao-h1/训练数据/北京比赛/北京设备全标注0621-3.13.4.768-3.8.11"
+    PRED_DIR = "/Volumes/shunyao-h1/比赛数据/2026辛集正式比赛/田间比赛对比-2.0.5-3.12.2-close"
     # 几何匹配（口径同 predict_all 校验）
     VAL_BOX_MATCH_METRIC = "iou"  # "iou" | "ior"
     VAL_GEOM_THRESHOLD = 0.25

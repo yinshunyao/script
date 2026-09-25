@@ -13,74 +13,89 @@
   },
   "predict_cfg": {
     "run_count": 2,
-    "clip_profiles_enable": false,
+    "clip_profiles_enable": true,
     "predict_phase_profile": false
   },
   "postprocess": {
     "debug": false,
     "bin_dark_ratio_min": 0,
-    "report_all_switch": false,
-    "shenchan_map_classes": {
-      "huifeishi": "baibeifeishi",
-      "sanhuaming": "erhuaming"
-    }
+    "report_all_switch": false
   },
   "models": {
     "detect_daofeishi": {
-      "model": "/Volumes/shunyao-h1/models-test/dfs-det-v3.1-lite/dfs-det-3.1.2s.pt",
       "enable": true,
-      "detect_conf": 0.1,
+      "detect_conf": 0.5,
       "nms_iou": 0.5,
-      "clip_size": 320,
+      "clip_size": 640,
       "overlap_size": 80,
       "ior_threshold": 0,
+      "dia_rate": 0.5,
       "clip_profiles": [
         {
-          "enable": true,
+          "enable": false,
           "clip_size": 640,
           "overlap_size": 120,
           "clip_start": 0
         },
         {
           "enable": true,
-          "clip_size": 480,
-          "overlap_size": 80,
+          "clip_size": 320,
+          "overlap_size": 60,
           "clip_start": 0
         }
       ],
       "edge_reject_distance": 5,
-      "edge_reject_conf_threshold": 0.8,
-      "edge_reject_cls_conf_threshold": 0.8,
-      "in_big_conf": 0.5,
-      "in_big_fill": false,
+      "edge_reject_conf_threshold": 0.75,
+      "edge_reject_cls_conf_threshold": 0.75,
+      "in_big_fill": true,
+      "in_big_by": "bbox",
+      "in_big_filter_big": [
+        "xiaocaie",
+        "dianguangyechan",
+        "heiweiyechan",
+        "feng",
+        "mangchun",
+        "yechan"
+      ],
       "out": {
         "*": {
           "models": {
             "cls": {
-              "cls_conf": 0.3,
               "out": {
                 "baibeifeishi": {
-                  "cls_conf": 0.3
+                  "infer_name": "huifeishi",
+                  "cls_conf": 0.55
                 },
                 "hefeishi": {
-                  "cls_conf": 0.3
+                  "infer_name": "huifeishi",
+                  "cls_conf": 0.55
                 },
                 "huifeishi": {
-                  "cls_conf": 0.3
+                  "infer_name": "huifeishi",
+                  "cls_conf": 0.55
+                },
+                "yechan": {
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "other": {
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 }
-              }
+              },
+              "cls_conf": 0.55
             }
           }
         }
-      }
+      },
+      "skip_dia_conf": 0.85
     },
     "detect_big": {
       "model0": "/Volumes/shunyao-h1/models-test/seg-v3.13/seg-3.13.5.pt",
-      "model": "/Volumes/shunyao-h1/models-test/seg-v3.13/seg-3.13.7.m640.768.pt",
-      "model2": "/Volumes/shunyao-h1/models-test/seg-v3.13/seg-3.13.8.s640.pt",
+      "model1": "/Volumes/shunyao-h1/models-test/seg-v3.13/seg-3.13.7.m640.768.pt",
+      "model": "/Volumes/shunyao-h1/models-test/seg-v3.13/seg-3.13.8.s640.pt",
+      "model3": "/Volumes/shunyao-h1/models-test/seg-v3.13/seg-3.13.9-t1.l640.pt",
+      "model4": "/Volumes/shunyao-h1/models-test/seg-v3.13/seg-3.13.10-t1.l640.pt",
       "enable": true,
       "draw_filter": false,
       "model_type": "segment",
@@ -94,29 +109,18 @@
       "overlap_size": 80,
       "clip_profiles": [
         {
-          "enable": true,
-          "clip_size": 2560,
-          "overlap_size": 200,
-          "seg_imgsz": 800
+          "enable": false,
+          "clip_size": 0,
+          "overlap_size": 120,
+          "clip_start": 0,
+          "seg_imgsz": 1024
         },
         {
           "enable": true,
           "clip_size": 0,
-          "overlap_size": 200,
-          "seg_imgsz": 1280
-        },
-        {
-          "enable": false,
-          "clip_size": 1280,
           "overlap_size": 120,
+          "clip_start": 0,
           "seg_imgsz": 1280
-        },
-        {
-          "enable": false,
-          "clip_size": 1280,
-          "overlap_size": 200,
-          "seg_imgsz": 640,
-          "clip_start": 300
         }
       ],
       "detect_conf": 0.6,
@@ -128,9 +132,10 @@
       "roi_disk_edge_outside_min": 0,
       "dia": [
         50,
-        1000
+        3000
       ],
       "dia_switch": true,
+      "dia_rate": 0.5,
       "out": {
         "*": {
           "cn_name": "昆虫",
@@ -140,666 +145,654 @@
             "cls": {
               "model0": "/Volumes/shunyao-h1/models-test/cls-v3.8/cls-3.8.11.pt",
               "model1:": "/Volumes/shunyao-h1/models-test/cls-v3.9/cls-3.9.2.pt",
-              "model": "/Volumes/shunyao-h1/models-test/cls-v3.10/cls-3.10.2.m480.pt",
+              "model": "/Volumes/shunyao-h1/models-test/cls-v3.9/cls-3.9.5.l480.pt",
+              "model3": "/Volumes/shunyao-h1/models-test/cls-v3.10/cls-3.10.3.l512.pt",
+              "model4": "/Volumes/shunyao-h1/models-test/cls-v3.10/cls-3.10.6.l512.pt",
               "enable": true,
               "dia_switch": false,
-              "cls_conf": 0.3,
-              "skip_dia_conf": 0.85,
+              "skip_dia_conf": 1,
               "out": {
                 "anheisaijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "anwenziheming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "badianhuidenge": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "baibianqieyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "baidiananyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "baidue": {
-                  "cls_conf": 0.3
+                  "bak": "未训练",
+                  "cls_conf": 0.55
                 },
                 "baigouxiaojuane": {
-                  "cls_conf": 0.3
+                  "bak": "未训练",
+                  "cls_conf": 0.55
                 },
                 "bailajuanxuyeming": {
-                  "cls_conf": 0.3
+                  "bak": "未训练",
+                  "cls_conf": 0.55
                 },
                 "baimaizhanyee": {
-                  "cls_conf": 0.3
+                  "bak": "未训练",
+                  "cls_conf": 0.55
                 },
                 "baitiaoyee": {
-                  "cls_conf": 0.3
+                  "bak": "未训练",
+                  "cls_conf": 0.55
                 },
                 "baixiansanwenyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.6
                 },
                 "bazidilaohu": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "biancie": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "bowenyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "bujia": {
-                  "cls_conf": 0.3
+                  "detect_conf": 0.8,
+                  "cls_conf": 0.8
                 },
                 "caodiming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "caoditanyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.5
                 },
                 "caoling": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "chachichun": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "chaseidilaohu": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "chenwudenge": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "chie": {
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "chimeidongyee": {
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "chirongsaijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "chixumangchun": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "chun": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "chunlue": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "dadilaohu": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "daheisaijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "daming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "danjiantanyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "danmainianchong": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "danyinwenyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "daodue": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "daolvchun": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "daozongjuanyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "daqingyechan": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "dawen": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "dazaoqiaochong": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "dianguangyechan": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "dihongchun": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "dingyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "dongfanglougu": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "dongfangnianchong": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "doujiabanming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "doujiayeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
+                },
+                "duyinchichong": {
+                  "cls_conf": 0.55
                 },
                 "erdianweiyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "erhuaming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "fanzhie": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "feng": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "fayee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "fendiedenge": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "fenyuanzuanyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "ganlanyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "ganshumaie": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "ganshutiane": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "ganwenyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "goujinzhenchong": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "gouyuetiane": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "guajuanming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "hanliuyuanyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "heidiantaie": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "heirongsaijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "heiweiyechan": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "hongchun": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "hongjiaolvlijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "hongliudiantiane": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "hongzonghuiyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huachun": {
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "huaichie": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "huaiyuzhoue": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "huajinglvwenhuang": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huaming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huangchizhuiyeyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huangchong": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huangdilaohu": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huangheyilijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "huanglianmuchihuo": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huangtutaie": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huangyangjuanyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huangyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huangyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huangzuliechun": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huasaijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huibandoutiane": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huifeishi": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "huixiongtusaijingui": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "jiachong": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "jianzhuienyeming": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "jinbanyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "jingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "jingwendiyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "juane": {
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "juanyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "juxianchie": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "kelaiyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "koujia": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "kuanjingyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "lanlvqijiaoming": {
-                  "cls_conf": 0.3
+                  "cn_name": "歧角螟",
+                  "infer_name": "qijiaoming",
+                  "cls_conf": 0.35
                 },
                 "laoshinianchong": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "liechun": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "liushangyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "liuyinchibanminge": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "lixiaoshixinchong": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "longshi": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "lvlijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "maimianyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "maimuyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "maisuiyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "malingshusaijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "mangchun": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.5
                 },
                 "meiguijinyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "meiguobaie": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "miandajuanyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "mianhehuanyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "mianlingchong": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "mianshuangxiejuane": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "mifeng": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "ming_bai": {
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "minge": {
                   "enable": false,
-                  "bak": "背景类；螟蛾-比昂-生产未知细分类，过滤不上报（0709）"
+                  "bak": "背景类；螟蛾-比昂-生产未知细分类，过滤不上报（0709）",
+                  "cls_conf": 0.55
                 },
                 "moyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "mudue": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "muxuyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "nianmoyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "niaozuihuyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "other": {
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "other_seg": {
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "piaochong": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "pingshaoyingyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "pingyanchie": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "pingzhangzhoue": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "qijiaoming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "qingchie": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "qiweiyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "quewentiane": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "renwenwudenge": {
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "saijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "sanchadilaohu": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "sandianmuxumangchun": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "sangming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "sanhuaming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "shanguangmeidenge": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "shie": {
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "shouyindingyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "shuiming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "sibanjuanyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "simianmujinxingchie": {
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "taie": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "taiwanjuansiyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "taozhuming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "tiancaibaidaiyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "tiancaiyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "tonglvyilijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "tubeibanhongchun": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "tuchun": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "tujia": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.65
                 },
                 "wen": {
-                  "cls_conf": 0.3
+                  "enable": false,
+                  "cls_conf": 0.55
                 },
                 "xianbanhongchun": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "xianweiyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "xiaocaie": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "xiaodilaohu": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "xiaoguantouxishuai": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "xiaohongjichie": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "xiaolajuanxuyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "xiaoshie": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.8
                 },
                 "xiaoyunbansaijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "xiaozaoqiaoe": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "xiewenyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "xieyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "xijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "xishuai": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "xitiaowenming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "xiumuyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "xuanqiyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "xuanyouyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yajia": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yanfumuheitiaoming": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yangshanzhoue": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yangxiaozhoue": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "yanqingchong": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yanyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yechan": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.6
                 },
                 "yeesoujifeng": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "yibeilue": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yinchichong": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yindingyee": {
-                  "cls_conf": 0.3,
-                  "models": {
-                    "cls": {
-                      "cls_conf": 0.3,
-                      "out": {
-                        "yindingyee": {
-                          "cls_conf": 0.3
-                        },
-                        "yinwenyee": {
-                          "cls_conf": 0.3
-                        },
-                        "yinyawenyee": {
-                          "cls_conf": 0.3
-                        }
-                      }
-                    }
-                  }
+                  "cls_conf": 0.55
                 },
                 "ying": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yinwenyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yinyawenyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yiqieyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yiwu": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "youcaijiaoyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "youtongchihuo": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "yubaibianzhoue": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "yumiming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "yunwenhujia": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "zhaishenchangxuyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.35
                 },
                 "zhonghualanbujia": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "zhonghuaxiaobianxijingui": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "zhonghuaxingbujia": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "zhonghuazhendibie": {
-                  "enable": true,
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "zhongjinhuyee": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "zhuzhiyeyeming": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 },
                 "zitiaochie": {
-                  "cls_conf": 0.3
+                  "cls_conf": 0.55
                 }
               }
             }

@@ -1,21 +1,38 @@
-# insect/script — 推理、验证、Gradio 服务、TensorRT 导出与 SAM Demo 的 Python 依赖
+# insect/script — 默认依赖：推理 / 验证 / Gradio（Windows · macOS · Linux）
 #
-# 扫描范围：script/*.py、predict/、tools/、val/、sam-demo/（不含 alg-bak 历史备份）
+# 环境选型：
+#   本文件 requirments.txt              日常推理与 Gradio（推荐；不含 onnx 包）
+#   requirments-windows-5090.txt        Windows 原生 + RTX 5090：torch+cu130 + onnxruntime-gpu
+#   requirments-wsl-5090.txt            Windows 主机 WSL2 + RTX 5090：Linux 轮子；pandas≥2.3.3（含 cp314）
+#   requirments-export-onnx.txt         YOLO/检测导出 .onnx（需预编译 wheel，见下）
+#   requirments-trt.txt                 Linux NVIDIA：TensorRT .engine + modelopt
+#
+# ⚠ Python：默认链路须 3.10–3.12。WSL 若是系统 **3.14**，请用 requirments-wsl-5090.txt
+#   （勿钉 pandas 2.2.x；3.14 上 onnx 导出仍可能缺 wheel，日常推理可走本 WSL 文件）。
+#   Windows 建议：先装 https://www.python.org/downloads/release/python-31210/ ，再建 venv。
+#   WSL 若报 pandas meson「Unknown compiler / 无 gcc」：改用 requirments-wsl-5090.txt，
+#   不要靠装 gcc 硬编。
 #
 # ── GPU 服务器推荐安装顺序（避免 torch/torchvision 错位）────────────────────
-# 1) 先装与 CUDA 匹配的成套 PyTorch（含 torch+torchvision，版本已锁定）：
-#      pip install -r insect/train/requirements-cuda130.txt   # CUDA 13.x
-#      pip install -r insect/train/requirements-cuda128.txt   # CUDA 12.8
-#      pip install -r insect/train/requirements-cuda126.txt   # V100 / cu126
-# 2) 再装本文件其余依赖（本文件 **不含** torch/torchvision，勿拆开升级）：
-#      pip install -r insect/script/requirments.txt
+# 1) pip install -r insect/train/requirements-cuda*.txt
+# 2) pip install -r insect/script/requirments.txt
+# 3) 导出 .onnx：pip install -r insect/script/requirments-export-onnx.txt
+# 4) 导出 TensorRT：pip install -r insect/script/requirments-trt.txt
 #
-# macOS / CPU-only：
+# ── Windows + RTX 5090（驱动 CUDA 13.x，检测 .onnx 要上 GPU）────────────────
+#   PowerShell（Windows 原生）：勿只用本文件（会装 CPU 版 onnxruntime，且不带 CUDA torch）。
+#     pip uninstall -y torch torchvision onnxruntime onnxruntime-gpu
+#     pip install -r insect/script/requirments-windows-5090.txt
+#   WSL2（Linux 用户态）：
+#     pip uninstall -y torch torchvision onnxruntime onnxruntime-gpu
+#     pip install -r insect/script/requirments-wsl-5090.txt
+#
+# macOS / Windows CPU-only / 非 5090：
+#   python -m venv .venv && .venv\Scripts\activate   # Win
 #   pip install -U pip
 #   pip install -r insect/script/requirments.txt
-#   pip install torch torchvision   # 或按 https://pytorch.org 选择 CPU 构建
+#   pip install torch torchvision   # 按 https://pytorch.org 选 CPU/CUDA
 #
-#   python3 -m pip install -r requirments.txt --break-system-packages --ignore-installed
 --index-url https://mirrors.aliyun.com/pypi/simple/
 --trusted-host mirrors.aliyun.com
 
@@ -25,27 +42,16 @@ opencv-python>=4.8.0
 Pillow>=10.0.0
 
 # --- YOLO 检测 / 分类 / 分割（ultralytics）---
-# TRT 11 原生导出建议 >=8.4.63；tools/acc_tensorRT.py 已对 8.4.41 + TRT10/11 打兼容补丁
+# TRT 11 原生导出建议 >=8.4.63；tools/export_tensorrt_engine.py 已对 8.4.41 + TRT10/11 打兼容补丁
 ultralytics==8.4.41
-
-# --- timm ConvNeXt 分类（predict/model_cls_timm.py）---
-timm>=1.0.3
 
 # --- PyTorch ---
 # ⚠️ 不在此文件声明 torch/torchvision（Linux GPU 由 train/requirements-cuda*.txt 成对安装）。
-# 若单独 pip install torch 或 torchvision 导致 `operator torchvision::nms does not exist`，
-# 请按文件头「GPU 服务器推荐安装顺序」成对 --force-reinstall。
 
-# --- TensorRT .engine 导出（tools/acc_tensorRT.py，仅 Linux NVIDIA GPU）---
-# ultralytics export(format=engine) 与 acc_tensorRT 补丁共用。
-# tensorrt 若 pip 装不上，按 NVIDIA 文档安装与 CUDA 匹配的 TensorRT wheel。
-tensorrt>7.0.0,!=10.1.0,!=10.2.0
-onnx>=1.12.0,<1.18.0
-onnxslim>=0.1.56
+# --- ONNX Runtime 推理（predict 只 import onnxruntime，不 import onnx）---
+# 导出 .onnx / 图检查才需要 onnx 包 → 见 requirments-export-onnx.txt / requirments-trt.txt
 onnxruntime-gpu>=1.15.0; platform_system=="Linux"
 onnxruntime>=1.15.0; platform_system!="Linux"
-# TensorRT 11：FP16/INT8 须在 ONNX 图内量化（BuilderFlag.FP16/INT8 已移除）
-nvidia-modelopt[onnx]>=0.44
 
 # --- Gradio 推理测试 + FastAPI REST（predict_all_gradio.py）---
 gradio>=5.31.0,<6.0.0
@@ -55,7 +61,5 @@ uvicorn[standard]>=0.23.0
 # --- 验证报表 / 混淆矩阵（predict_size_validate_lib.py）---
 matplotlib>=3.7.0
 
-# --- SAM2（仅 sam-demo/，PyPI 包名 SAM-2，须从源码 editable 安装）---
+# --- SAM2（仅 sam-demo/，须从源码 editable 安装）---
 # 详见 insect/doc/99-ops/sam2.md
-#   git clone https://github.com/facebookresearch/sam2.git
-#   cd sam2 && pip install -e . -i https://mirrors.aliyun.com/pypi/simple/

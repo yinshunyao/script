@@ -3322,6 +3322,40 @@
     "size_label": "中虫",
     "training_plan_reserve_row": false
   },
+  "tutaie": {
+    "body_length_mm": {
+      "max_mm": 14.0,
+      "min_mm": 11.0,
+      "note": null,
+      "raw": "11–14"
+    },
+    "category": "其他昆虫",
+    "data_dirs_raw": "tutaie",
+    "deliver_biong": false,
+    "group": "其他昆虫",
+    "max_mm": 27.3,
+    "min_mm": 11.0,
+    "name_zh": "土苔蛾",
+    "patch_average_px": {
+      "height_px": 417,
+      "raw": "618×417",
+      "width_px": 618
+    },
+    "pest_level": {
+      "group_zh": "其他昆虫",
+      "is_other_dataset_class": true,
+      "label_zh": "其他昆虫",
+      "national_list_class": null
+    },
+    "pinyin": "tutaie",
+    "regions": [],
+    "regions_raw": null,
+    "remark": null,
+    "sample_count": 0,
+    "sheet_row": 0,
+    "size_label": "中虫",
+    "training_plan_reserve_row": false
+  },
   "huangyangjuanyeming": {
     "body_length_mm": {
       "max_mm": 18.0,
@@ -7567,7 +7601,7 @@
     "group": "其他昆虫",
     "max_mm": null,
     "min_mm": null,
-    "name_zh": "白勾小卷蛾",
+    "name_zh": "白钩小卷蛾",
     "patch_average_px": {
       "height_px": null,
       "raw": null,

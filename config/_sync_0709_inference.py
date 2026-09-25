@@ -17,7 +17,7 @@ from cls_map import leaf_to_zh_dir  # noqa: E402
 
 # merge 组拼音 key → 中文名（0709 新增 other 组）
 NEW_OTHER_KEYS: dict[str, str] = {
-    "baigouxiaojuane": "白勾小卷蛾",
+    "baigouxiaojuane": "白钩小卷蛾",
     "dihongchun": "地红蝽",
     "fanzhie": "泛尺蛾",
     "hongliudiantiane": "红六点天蛾",

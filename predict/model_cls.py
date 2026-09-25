@@ -21,6 +21,9 @@ from script.predict.model_channel import (
     mps_safe_device,
 )
 
+# 推理保留置信度前 K，供后续尺寸/名单过滤；过滤后再按 cls_top_n 归一化
+CLS_INFER_KEEP_TOPK = 10
+
 
 class ModelCls:
     """YOLO 分类封装；可选灰度+CLAHE+Otsu 二值化；可选白边补方；可选推理前最后一步转灰度。"""
@@ -187,6 +190,33 @@ class ModelCls:
             return None
 
     def _parse_cls_result(self, probe) -> dict[str, Any]:
+        keep = int(CLS_INFER_KEEP_TOPK)
+        data = getattr(probe, "data", None)
+        if data is not None:
+            try:
+                k = min(keep, int(data.numel()))
+                confs, ids = data.topk(k)
+                topk: list[dict] = []
+                for i in range(int(ids.numel())):
+                    cid = int(ids[i].item())
+                    topk.append(
+                        {
+                            "class_id": cid,
+                            "class_name": self.names[cid],
+                            "conf": float(confs[i].item()),
+                        }
+                    )
+                top1 = topk[0]
+                return {
+                    "class_id": top1["class_id"],
+                    "class_name": top1["class_name"],
+                    "conf": top1["conf"],
+                    "top3": topk[:3],
+                    "topk": topk,
+                }
+            except Exception:
+                logging.debug("cls topk from probe.data failed, fallback top5", exc_info=True)
+
         class_id = probe.top1
         top_ids = (
             list(probe.top5)
@@ -198,8 +228,8 @@ class ModelCls:
             if hasattr(probe, "top5conf") and probe.top5conf is not None
             else [probe.top1conf]
         )
-        topk: list[dict] = []
-        for i in range(min(5, len(top_ids), len(top_confs))):
+        topk = []
+        for i in range(min(keep, len(top_ids), len(top_confs))):
             cid = int(top_ids[i])
             topk.append(
                 {

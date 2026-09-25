@@ -24,14 +24,17 @@ from script.predict.model_channel import (
 from script.predict.model_detect import (
     ClipProfile,
     _pad_tile_to_clip_square,
+    apply_split_by_scale_filter,
     format_clip_slice_label_suffix,
     ior,
     make_clip_detect_id,
+    merge_profile_out_size,
+    resolve_profile_augment,
     resolve_profile_imgsz,
     unpack_clip_profile,
     uses_clip_inference_path,
 )
-from script.tools.roi_heyifei import iter_clip_tiles_for_image
+from script.tools.roi_preprocess import iter_clip_tiles_for_image
 
 
 class _SegClipTile(NamedTuple):
@@ -398,6 +401,7 @@ class ModelSegmenter:
         retina_masks: bool | None = None,
         debug_save_stem: str | None = None,
         debug_save_dir: str | None = None,
+        augment: bool | None = None,
     ) -> list[dict[str, Any]]:
         kwargs: dict[str, Any] = {}
         use_imgsz = int(imgsz if imgsz is not None else self.imgsz)
@@ -439,13 +443,14 @@ class ModelSegmenter:
             debug_save_stem=save_stem,
         )
         sx, sy = yolo_input_coord_scale(source_shape, yolo_in)
+        use_aug = self.augment if augment is None else bool(augment)
 
         with model_infer_guard(self.model_path, task=self._infer_task):
             pred = self.model.predict(
                 yolo_in,
                 verbose=False,
                 device=mps_safe_device(device or self.device, self.model_ch),
-                augment=self.augment,
+                augment=use_aug,
                 conf=float(conf),
                 **kwargs,
             )
@@ -502,6 +507,7 @@ class ModelSegmenter:
         max_det: int | None = None,
         nms_agnostic: bool | None = None,
         retina_masks: bool | None = None,
+        augment: bool | None = None,
     ) -> list[list[dict[str, Any]]]:
         """多 tile YOLO seg batch；单张时退化为 ``_predict``。"""
         if not images:
@@ -518,6 +524,7 @@ class ModelSegmenter:
                     max_det=max_det,
                     nms_agnostic=nms_agnostic,
                     retina_masks=retina_masks,
+                    augment=augment,
                 )
             ]
         kwargs: dict[str, Any] = {}
@@ -557,12 +564,13 @@ class ModelSegmenter:
             yolo_inputs.append(yolo_in)
             scales.append((sx, sy))
 
+        use_aug = self.augment if augment is None else bool(augment)
         with model_infer_guard(self.model_path, task=self._infer_task):
             pred = self.model.predict(
                 yolo_inputs,
                 verbose=False,
                 device=mps_safe_device(device or self.device, self.model_ch),
-                augment=self.augment,
+                augment=use_aug,
                 conf=float(conf),
                 **kwargs,
             )
@@ -671,6 +679,7 @@ class ModelSegmenter:
         retina_masks: bool | None,
         all_rows: list[dict[str, Any]],
         debug_clip: bool = False,
+        augment: bool | None = None,
     ) -> None:
         bs = max(1, int(clip_batch_size or 1))
         for start in range(0, len(tiles), bs):
@@ -687,6 +696,7 @@ class ModelSegmenter:
                         max_det=max_det,
                         nms_agnostic=nms_agnostic,
                         retina_masks=retina_masks,
+                        augment=augment,
                     )
                     for t in chunk
                 ]
@@ -704,6 +714,7 @@ class ModelSegmenter:
                             max_det=max_det,
                             nms_agnostic=nms_agnostic,
                             retina_masks=retina_masks,
+                            augment=augment,
                         )
                         for t in chunk
                     ]
@@ -718,6 +729,7 @@ class ModelSegmenter:
                         max_det=max_det,
                         nms_agnostic=nms_agnostic,
                         retina_masks=retina_masks,
+                        augment=augment,
                     )
             for tile, local_rows in zip(chunk, batch_rows):
                 self._append_seg_tile_rows(
@@ -1067,6 +1079,8 @@ class ModelSegmenter:
         gray_contrast_debug_dir: str | None = None,
         roi_circle: tuple[int, int, int] | None = None,
         clip_batch_size: int = 1,
+        split_by_scale: bool = False,
+        split_if_contain: int = 2,
     ) -> list[dict[str, Any]]:
         """
         整图或滑窗分割推理，返回全图坐标下的实例列表。
@@ -1107,13 +1121,20 @@ class ModelSegmenter:
                 gray_contrast_debug_dir=gray_contrast_debug_dir,
                 roi_circle=roi_circle,
                 clip_batch_size=clip_batch_size,
+                split_by_scale=split_by_scale,
+                split_if_contain=split_if_contain,
             )
         if clip_profiles is not None and len(clip_profiles) == 1:
             clip_size, overlap_size, clip_start = unpack_clip_profile(clip_profiles[0])
             imgsz_eff = self._effective_imgsz(clip_profiles[0], imgsz)
+            profile_aug = resolve_profile_augment(clip_profiles[0], self.augment)
+            min_size, max_size = merge_profile_out_size(
+                clip_profiles[0], min_size, max_size
+            )
         else:
             imgsz_eff = self._effective_imgsz(None, imgsz)
             clip_start = max(0, int(clip_start or 0))
+            profile_aug = None
 
         use_clip = bool(
             clip_size
@@ -1141,6 +1162,7 @@ class ModelSegmenter:
                 retina_masks=retina_masks,
                 debug_save_stem=debug_image_stem,
                 debug_save_dir=gray_contrast_debug_dir,
+                augment=profile_aug,
             )
             for r in local_rows:
                 if pad_off_x or pad_off_y:
@@ -1204,6 +1226,7 @@ class ModelSegmenter:
             retina_masks=retina_masks,
             all_rows=all_rows,
             debug_clip=debug_clip,
+            augment=profile_aug,
         )
 
         results = self.merge_ior(all_rows)
@@ -1241,6 +1264,8 @@ class ModelSegmenter:
         gray_contrast_debug_dir: str | None,
         roi_circle: tuple[int, int, int] | None = None,
         clip_batch_size: int = 1,
+        split_by_scale: bool = False,
+        split_if_contain: int = 2,
     ) -> list[dict[str, Any]]:
         """多套切片依次推理，最后统一 merge_ior 与 merge_polygon_similar。"""
         all_rows: list[dict[str, Any]] = []
@@ -1249,6 +1274,8 @@ class ModelSegmenter:
         for profile_idx, profile in enumerate(profiles):
             clip_size, overlap_size, clip_start = unpack_clip_profile(profile)
             profile_imgsz = self._effective_imgsz(profile, imgsz)
+            profile_aug = resolve_profile_augment(profile, self.augment)
+            p_min, p_max = merge_profile_out_size(profile, min_size, max_size)
             if uses_clip_inference_path(w, h, clip_size, overlap_size):
                 tiles = [
                     _prepare_seg_clip_tile(
@@ -1280,8 +1307,8 @@ class ModelSegmenter:
                     infer_conf=infer_conf,
                     clip_batch_size=clip_batch_size,
                     padding=padding,
-                    min_size=min_size,
-                    max_size=max_size,
+                    min_size=p_min or 0,
+                    max_size=p_max,
                     device=device,
                     nms_iou=nms_iou,
                     max_det=max_det,
@@ -1289,6 +1316,7 @@ class ModelSegmenter:
                     retina_masks=retina_masks,
                     all_rows=all_rows,
                     debug_clip=debug_clip,
+                    augment=profile_aug,
                 )
                 continue
 
@@ -1312,6 +1340,7 @@ class ModelSegmenter:
                 retina_masks=retina_masks,
                 debug_save_stem=debug_image_stem,
                 debug_save_dir=gray_contrast_debug_dir,
+                augment=profile_aug,
             )
             for r in local_rows:
                 if pad_off_x or pad_off_y:
@@ -1323,7 +1352,7 @@ class ModelSegmenter:
                     r["x2"] = int(r["x2"]) - pad_off_x
                     r["y2"] = int(r["y2"]) - pad_off_y
                 r, flt = self._slice_local_prefilter(
-                    r, w, h, padding=False, min_size=min_size, max_size=max_size
+                    r, w, h, padding=False, min_size=p_min, max_size=p_max
                 )
                 r["filter"] = bool(flt)
                 if clip_size:
@@ -1332,6 +1361,11 @@ class ModelSegmenter:
                 r["clip_tile_seq"] = 0
                 r["clip_profile_total"] = profile_total
                 all_rows.append(r)
+
+        if split_by_scale and int(split_if_contain) > 0:
+            apply_split_by_scale_filter(
+                all_rows, split_if_contain=int(split_if_contain)
+            )
 
         results = self.merge_ior(all_rows)
         results = self.merge_polygon_similar(results)

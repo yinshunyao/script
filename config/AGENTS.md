@@ -7,8 +7,8 @@
 | 文件 | 用途 |
 |:---|:---|
 | `insect_alg_all.json` | 统一多根推理（detect/segment 根、`out` 路由、嵌套分类）；**启动入口**，顶层 `run_model` 切换摆拍/生产/其他 |
-| `insect_alg_shengchan.json` | 生产环境算法配置（`run_model=shengchan` 时加载）；不含 `model_dir` 与 tier 清单 |
-| `insect_alg_other.json` | 其他场景算法配置（`run_model=other` 时加载）；不含 `model_dir` 与 tier 清单 |
+| `insect_alg_shengchan.json` | 生产环境算法配置（`run_model=shengchan` 时加载）；不含 `model_dir`；报出档位继承基线叶类 `report_tier` |
+| `insect_alg_other.json` | 其他场景算法配置（`run_model=other` 时加载）；不含 `model_dir`；报出档位继承基线叶类 `report_tier` |
 | `insect_info.json` | 物种元数据（中文名、体长、区域索引等） |
 | `cls_merge.py` | 训练/评估类别层级与合并（`cls_merge` 字典） |
 | `insect_info.py` | 加载 `insect_info.json`，区域索引与 c1/c2 派生 |

@@ -1,0 +1,66 @@
+# insect/script — Windows + RTX 5090（Blackwell）GPU 推理依赖
+#
+# 适用：
+#   - Windows 10/11，NVIDIA 驱动 nvidia-smi 顶部 **CUDA Version: 13.x**（如 13.1）
+#   - 独显为 GeForce RTX 5090 / 5090 Laptop（任务管理器可能显示为「GPU 1」，
+#     CUDA / nvidia-smi / 本脚本一律用 **cuda:0**）
+#   - Gradio / predict_all：检测 .onnx + 分类 .pt 都要能上 GPU
+#
+# 与默认 requirments.txt 的差异：
+#   1) 成对安装 **torch/torchvision +cu130**（默认文件不声明 torch；Win 常误装 CPU 版）
+#   2) 使用 **onnxruntime-gpu**（默认文件在非 Linux 上装 CPU 版 onnxruntime，
+#      会出现「ONNX 请求 CUDA 但当前 Runtime 无 CUDA EP，回退 CPU」）
+#
+# ⚠ Python：必须 3.10–3.12（推荐 3.12）。先建干净 venv，勿与 CPU 版 torch 混装。
+#
+# ── 安装（PowerShell，仓库根或 insect/ 下均可）────────────────────────────
+#   python -m venv .venv
+#   .\.venv\Scripts\Activate.ps1
+#   python -m pip install -U pip
+#   # 若环境里已有 CPU 包，先卸干净再装本文件：
+#   pip uninstall -y torch torchvision torchaudio onnxruntime onnxruntime-gpu
+#   pip install -r insect/script/requirments-windows-5090.txt
+#
+# 若阿里云镜像解析不到 +cu130，可强制官方 CUDA 索引：
+#   pip install -r insect/script/requirments-windows-5090.txt ^
+#     --extra-index-url https://download.pytorch.org/whl/cu130
+#
+# ── 验证 ──────────────────────────────────────────────────────────────────
+#   python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.version.cuda, torch.cuda.get_device_name(0) if torch.cuda.is_available() else '-')"
+#   python -c "import onnxruntime as ort; print(ort.get_available_providers())"
+#   期望：is_available=True；providers 含 CUDAExecutionProvider
+#   启动 predict_all_gradio 后不应再出现：
+#     [warmup] torch.cuda.is_available()=False
+#     ONNX 请求 CUDA 但当前 Runtime 无 CUDA EP
+#
+# 说明：PyTorch 包名 cu130 = CUDA 13.0 运行时，与驱动报告的 13.x 同代；
+#       无需在 Windows 上另装完整 CUDA Toolkit。RTX 5090 需含 Blackwell kernel
+#       的构建（2.10.0+cu130）；若报 no kernel image，换更新的 +cu130 轮子。
+
+--index-url https://mirrors.aliyun.com/pypi/simple/
+--trusted-host mirrors.aliyun.com
+--extra-index-url https://download.pytorch.org/whl/cu130
+
+# --- PyTorch（CUDA 13.0 / RTX 5090）---
+torch==2.10.0+cu130
+torchvision==0.25.0+cu130
+
+# --- 核心数值 / 图像 ---
+numpy>=1.23.0,<3
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# --- YOLO（ultralytics）---
+ultralytics==8.4.41
+
+# --- ONNX Runtime GPU（Windows 检测/分类 .onnx）---
+# 勿同时安装 onnxruntime（CPU）；二者冲突且会抢包名
+onnxruntime-gpu>=1.15.0
+
+# --- Gradio + FastAPI REST ---
+gradio>=5.31.0,<6.0.0
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+
+# --- 验证报表 ---
+matplotlib>=3.7.0

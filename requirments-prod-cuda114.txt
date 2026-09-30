@@ -1,0 +1,65 @@
+# insect/script — 线上推理（驱动锁死 CUDA 11.4）
+#
+# 适用：
+#   - Linux，Python **3.10**（yinglaoshi：/home/miniconda3/envs/yinglaoshi）
+#   - nvidia-smi：Driver **470.103.01**，CUDA Version **11.4**
+#   - GPU：NVIDIA A10-6Q（vGPU，约 6GB）。客人机不能单独升驱动
+#
+# 不要用：
+#   requirments.txt 配 train/requirements-cuda*.txt（cu126/cu128/cu130）
+#   requirments-wsl-5090.txt / requirments-windows-5090.txt
+#   requirments-trt.txt（TensorRT .engine）
+#   驱动 470 加载不了 CUDA 11.6 及以上的轮子（cu116 起要驱动 ≥ 510，cu130 要 ≥ 580）
+#
+# 安装（先卸掉 cu13 栈，以及和 numpy 1.26 / torch 1.12 / gradio 5 冲突的残留包）：
+#   PY=/home/miniconda3/envs/yinglaoshi/bin/python3
+#   $PY -m pip uninstall -y torch torchvision torchaudio triton \
+#       onnxruntime onnxruntime-gpu opencv-python \
+#       cupy-cuda12x hf-gradio ml-dtypes nvidia-modelopt
+#   $PY -m pip install -r insect/script/requirments-prod-cuda114.txt
+#
+# 验收：
+#   $PY -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else '-'); print(torch.zeros(1, device='cuda'))"
+#   期望：torch 1.12.1+cu113、cuda True、名称含 A10，zeros 在 cuda 上。
+#   通过后再 restart ai。日志里应有「检测到 CUDA」；.pt 的 warmup allocated 应大于 0。
+#
+# 不要执行 conda install cudatoolkit / cudnn，也不要改系统里的 CUDA、cuDNN、驱动。
+# .pt 上 GPU 只靠 torch==1.12.1+cu113 轮子自带的运行库，加上现有驱动即可。
+# .onnx 要另备 CUDA 11.4 / cuDNN 8.2 运行库才能进 GPU；本机不允许动这两样，所以 onnxruntime 用 CPU 包。
+# 不要装 onnxruntime-gpu、nvidia-*-cu13、tensorrt。
+
+--index-url https://mirrors.aliyun.com/pypi/simple/
+--trusted-host mirrors.aliyun.com
+# 阿里云 /pytorch-wheels/ 不是 simple index，必须 --find-links 才能解析 +cu113
+--find-links https://mirrors.aliyun.com/pytorch-wheels/cu113/
+# 镜像没有该轮子时回退官方源
+--extra-index-url https://download.pytorch.org/whl/cu113
+
+# --- PyTorch（CUDA 11.3 轮子；11.4 驱动可跑更旧的 CUDA 应用。仅 cp310）---
+torch==1.12.1+cu113
+torchvision==0.13.1+cu113
+
+# --- 核心数值 / 图像 ---
+# torch 1.12 不能配 numpy 2。OpenCV 5 按 numpy 2 编译，这里钉 4.10。
+numpy==1.26.4
+opencv-python==4.10.0.84
+# torchvision 0.13.1 仍引用已在 Pillow 10 删除的 Image.ANTIALIAS
+Pillow>=9.5.0,<10
+
+# --- YOLO ---
+# 声明 torch>=1.8，可与 1.12.1 同装。线上曾漂到 8.4.143，此处与仓库推理钉版一致。
+ultralytics==8.4.41
+
+# --- ONNX Runtime（CPU）---
+# GPU 版 1.12.1 依赖单独的 CUDA 11.4 / cuDNN 8.2，本机不允许安装。1.13+ 还要更新的驱动。
+# 与 onnxruntime-gpu 互斥。若已经装过 GPU 包，先卸掉再装这一行。
+onnxruntime==1.16.3
+
+# --- Gradio + FastAPI REST ---
+gradio>=5.31.0,<6.0.0
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+
+# --- 验证报表 ---
+# 3.10 仍支持 numpy 1.26；不放到需要 numpy 2 的更新版本
+matplotlib>=3.7.0,<3.10

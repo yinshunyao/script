@@ -2323,6 +2323,8 @@ if __name__ == "__main__":
 
     # 推荐：同时捕获 stdout+stderr（日志已双写，只重定向 stdout 也能在 web.log 看到）
     # nohup /home/shunyao/miniconda310/envs/yolo11/bin/python3  /data/script/predict_all_gradio.py > web.log 2>&1 &
+    # 生产环境
+    # /home/miniconda3/envs/yinglaoshi/bin/python3 predict_all_gradio.py
     # mac本地启动
     # /Users/shunyaoyin/miniconda310/miniconda3/envs/yolo11/bin/python3 /Users/shunyaoyin/Documents/code/ai-company/insect/script/predict_all_gradio.py
     configure_process_logging(logging.INFO)

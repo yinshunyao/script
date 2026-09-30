@@ -271,4 +271,4 @@ app = create_serving_app(config_path=None, cache_size=3, infer_device="cuda:0")
 - 请从项目根运行，或设置 `PYTHONPATH` 包含 `insect/` 目录。
 - 修改 JSON 配置或切换 `run_model` 后，需 **`release()` 并重建管线**或**重启 Gradio/uvicorn 进程**，进程内会缓存模型权重。
 - 模型路径：配置中 `model_dir` 按操作系统解析；单模型 `model` 字段建议使用部署机上的绝对路径。
-- 依赖：基础见 `requirments.txt`；ONNX / TRT / 5090 等环境见 `requirments-export-onnx.txt`、`requirments-trt.txt`、`requirments-wsl-5090.txt` 等。
+- 依赖：基础见 `requirments.txt`；ONNX / TRT / 5090 等环境见 `requirments-export-onnx.txt`、`requirments-trt.txt`、`requirments-wsl-5090.txt` 等。线上 A10-6Q（驱动 CUDA 11.4）用 `requirments-prod-cuda114.txt`。

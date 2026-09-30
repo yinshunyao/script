@@ -36,7 +36,7 @@
       "insect"
     ],
     "only_classes": [],
-    "black_classes": [],
+    "black_classes": ["deguofujingui"],
     "black_classes1": [
       "baitaioyee",
       "caodiming",

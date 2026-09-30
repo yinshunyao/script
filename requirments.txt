@@ -6,6 +6,7 @@
 #   requirments-wsl-5090.txt            Windows 主机 WSL2 + RTX 5090：Linux 轮子；pandas≥2.3.3（含 cp314）
 #   requirments-export-onnx.txt         YOLO/检测导出 .onnx（需预编译 wheel，见下）
 #   requirments-trt.txt                 Linux NVIDIA：TensorRT .engine + modelopt
+#   requirments-prod-cuda114.txt        线上 A10-6Q：驱动 470 / CUDA 11.4，torch 1.12.1+cu113
 #
 # ⚠ Python：默认链路须 3.10–3.12。WSL 若是系统 **3.14**，请用 requirments-wsl-5090.txt
 #   （勿钉 pandas 2.2.x；3.14 上 onnx 导出仍可能缺 wheel，日常推理可走本 WSL 文件）。

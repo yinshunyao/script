@@ -69,6 +69,52 @@ This directory is **commercial proprietary** code. Public access is for **techni
 
 ---
 
+## Beijing competition eval (current config)
+
+Tied to the **active** weight fields in `config/insect_alg_all.json` (not alternate `modelN` comments):
+
+| Role | Weight |
+|:---|:---|
+| Detect | `det-v2.0.5` (`.onnx`) |
+| Classify | `cls-3.12.2` (`.pt`) |
+
+`run_model` does **not** swap those weights. **`baipai`** uses the full baseline in `insect_alg_all.json`; **`shengchan`** overlays `insect_alg_shengchan.json` (thresholds / postprocess / per-class gates). Numbers below are for the **`2.0.5-3.12.2`** stack on Beijing competition sets.
+
+### Staged — `run_model=baipai`
+
+Set: mock staged exam **模拟摆拍4-0830** (1026 GT boxes / 77 averaged classes). Scoring: class-wise count accuracy, then staged penalty → **corrected official score**.
+
+| Metric | Value |
+|:---|---:|
+| Corrected official score | **86.50%** |
+| Mean (pre-penalty) | 86.59% |
+| Staged penalty | 0.10% |
+| Instance TP / FN / FP | 914 / 41 / 71 |
+| Instance accuracy | 89.08% |
+| Recall gap / total deviation | 4.00% / 10.92% |
+| top1 / top2 / top3 accuracy | 88.71% / 94.07% / 84.19% |
+
+Same-stack note: official score trails `2.0.2-3.12.2-v7` by ~0.07 pp, but instance quality (TP, bees, brown planthopper, top1) is better—**staged field pick remains `2.0.5-3.12.2`**. Dual-model `3.13.1` lines are reference-only, not for deploy.
+
+### Production — `run_model=shengchan`
+
+Set: field contrast **比赛田间对照**, **67** images (1514 labels after ground-beetle / rove-beetle alias merge into the average). Production formula: arithmetic mean over classes with ID count ≥3; **with ID=0** also folds unidentified false-report classes in at 0%.
+
+| Metric | Value |
+|:---|---:|
+| Score **with** ID=0 false reports | **64.71%** |
+| Score ID≥3 only | **78.09%** |
+| Unidentified FP classes / boxes | 6 / 6 |
+| Instance TP / FN / FP | 1385 / 23 / 63 |
+| Instance accuracy | 91.48% |
+| Mean latency (that log) | 6.78s / image |
+
+Same weights on the same 67-image field set after further gate matching (log `2.0.5-3.12.2-match`): **72.38%** (with ID=0) / **74.87%** (ID≥3), ~0.66s / image—shows score sensitivity to production gates, not a second weight set.
+
+Larger Xinji field batch logs under `比赛田间/` (e.g. `2.0.5-3.12.2-test`) use a different image pool; do not average with the 67-image contrast table.
+
+---
+
 ## Main entry points
 
 | Entry | Purpose |
